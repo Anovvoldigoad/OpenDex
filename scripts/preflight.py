@@ -7,6 +7,13 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
 
+# CI intentionally uses gradle/actions/setup-gradle with an installed Gradle
+# distribution. A custom/untrusted gradle-wrapper.jar would be rejected by
+# setup-gradle wrapper validation, so fail early if one is ever reintroduced.
+wrapper_jars = list(ROOT.rglob('gradle-wrapper.jar'))
+for jar in wrapper_jars:
+    errors.append(f'Unexpected Gradle wrapper JAR: {jar.relative_to(ROOT)}')
+
 for p in ROOT.rglob('*.xml'):
     try:
         ET.parse(p)

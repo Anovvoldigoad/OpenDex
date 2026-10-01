@@ -31,6 +31,9 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
+      # OpenDex intentionally does not commit a gradle-wrapper.jar.
+      # setup-gradle downloads a verified Gradle 9.5.0 distribution and exposes
+      # the `gradle` executable on PATH.
       - name: Set up Gradle 9.5
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -54,13 +57,13 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.1-debug.apk
-          sha256sum dist/OpenDex-v0.3.1-debug.apk > dist/OpenDex-v0.3.1-debug.apk.sha256
+          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.2-debug.apk
+          sha256sum dist/OpenDex-v0.3.2-debug.apk > dist/OpenDex-v0.3.2-debug.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
-          name: OpenDex-v0.3.1-debug
+          name: OpenDex-v0.3.2-debug
           path: dist/*
           if-no-files-found: error
           retention-days: 30

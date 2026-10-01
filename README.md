@@ -1,4 +1,4 @@
-# OpenDex Launcher v0.3.1-alpha
+# OpenDex Launcher v0.3.2-alpha
 
 OpenDex is an experimental Windows-11-inspired Android desktop shell designed for phones/tablets and secondary displays. It is a real Android HOME launcher, not a web mockup.
 
@@ -26,10 +26,14 @@ The repository contains `.github/workflows/build-apk.yml`.
 1. Put all repository files on GitHub with `.github` at the repository root.
 2. Open **Actions** → **Build OpenDex APK** → **Run workflow**.
 3. Wait for the green run.
-4. Download the **OpenDex-v0.3.1-debug** artifact.
-5. Extract it and install `OpenDex-v0.3.1-debug.apk`.
+4. Download the **OpenDex-v0.3.2-debug** artifact.
+5. Extract it and install `OpenDex-v0.3.2-debug.apk`.
 
 See [`docs/PHONE_ONLY_GITHUB.md`](docs/PHONE_ONLY_GITHUB.md) for the phone-only walkthrough.
+
+## Gradle wrapper policy
+
+This repository intentionally does **not** commit `gradle-wrapper.jar`. The phone-only build path uses `gradle/actions/setup-gradle@v6` with `gradle-version: 9.5.0`, then invokes the `gradle` executable supplied by the action. This avoids committing a custom binary wrapper and keeps GitHub's wrapper validation meaningful.
 
 ## CI toolchain
 
@@ -52,7 +56,7 @@ Android lintDebug
     ↓
 assembleDebug
     ↓
-OpenDex-v0.3.1-debug.apk
+OpenDex-v0.3.2-debug.apk
     ↓
 GitHub Actions artifact
 ```
@@ -129,6 +133,6 @@ settings.gradle
 
 ## Project status
 
-This v0.3.1 source tree has been repository-preflight checked (XML parse, manifest component presence, required files, Java brace structure). The provided GitHub workflow is the authoritative compile/lint step because the generation sandbox does not contain an Android SDK or outbound Gradle/Maven access.
+This v0.3.2 source tree has been repository-preflight checked (XML parse, manifest component presence, required files, Java brace structure). The provided GitHub workflow is the authoritative compile/lint step because the generation sandbox does not contain an Android SDK or outbound Gradle/Maven access.
 
 The first GitHub run therefore provides the real `lintDebug + assembleDebug` verdict and, when successful, the actual APK artifact.

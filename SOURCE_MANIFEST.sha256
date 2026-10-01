@@ -1,10 +1,10 @@
 494b30b5114a27d78b37921e9c2826e47ff2963cd9bb50264dfe1687377160ff  ./.gitattributes
-bb7aed37ecbe93124fa705eb1efa6fa5d38ab17db0218824c98dbf09875ce8d6  ./.github/workflows/build-apk.yml
+06e89a431761b8a1eb78a3aee8ce63ed2665e9a8b9cc046429c85f472672aa26  ./.github/workflows/build-apk.yml
 f5e1acd7eeaa2c64f4446e39c92bfa81bb715344fababd559060bdc21f0160ed  ./.gitignore
-f4dc6777199c91c60bb707cda31d66ae7dd95ce97c1a84b39219eebf32146094  ./BUILD_STATUS.md
+8fe09c2630024f482b1defdda49d489752ce04d814daac42b9dd4a6aca5cfacc  ./BUILD_STATUS.md
 9aad10f64a527ff44cd538dc72e17e38d0fc7c7e8439d39cf9e6b6b0bd598696  ./LICENSE
-744c38f4db950f99cbdf838d4a8bd6159dd25d2e2aa63e3e3773cf017f2dc21b  ./README.md
-6d5437b06d5e10fba5ee0bf25baef982b19c3f50a641e2a2afd805ba529cb569  ./app/build.gradle
+b468a43444591818b3ae2d330ec55edaa51cc851b2b7382413f790aa3ffd53ea  ./README.md
+98c03edc9cb2469731a985e9ef90a1d795929d43717dc5af2d0fe287427514fc  ./app/build.gradle
 080b2b6e26506e2ff6f236f3e860970222800c41362b644fe9f62adf6b72567b  ./app/proguard-rules.pro
 9f0a42933b6feb71b9419708505c402287091aeb2b9cf22b70a7267cf7e30a0a  ./app/src/main/AndroidManifest.xml
 6da6f75401f7a0083985599aad21403699c251a7363f132a48db94b39e25e930  ./app/src/main/aidl/com/opendex/launcher/IUserShellService.aidl
@@ -21,7 +21,7 @@ b362d0e7c08441459035eb494562bcf06d7ddc87c6991f7d473b82bf8ad20ee4  ./app/src/main
 223f9135a8823dd76fcee6e5035824d606de7cad04d57a50ced69bcc9e448550  ./app/src/main/java/com/opendex/launcher/shell/UserShellService.java
 ae89cbda1d2a48f9f6adbaad798874a397c34ec844d5f655c2be2fc1f4ec7854  ./app/src/main/java/com/opendex/launcher/ui/Ui.java
 ba4c2282ca81d6fec49ea458416abf732d44885b8fbc85d0d928c76ea7dbb173  ./app/src/main/java/com/opendex/launcher/ui/WallpaperView.java
-65cc2fb2921fd7897a2bfd2a75e08f1bbda93213efb3e9fb5d658293325acf48  ./app/src/main/java/com/opendex/launcher/ui/WindowsDesktopView.java
+9bec73c4fdcdfd9e45cdb2216adc99430a5b05a6fb2e52db928d2924303f2a49  ./app/src/main/java/com/opendex/launcher/ui/WindowsDesktopView.java
 168fe42421bcd2914dea973556febfad8ddaae188969696c55ec63bb543ae79f  ./app/src/main/java/com/opendex/launcher/ui/WindowsLogoView.java
 61950a4c2fd3f7404e1dabc8d66c728e365e0344f26e86188e61c482033513d6  ./app/src/main/java/com/opendex/launcher/util/Prefs.java
 28ef968d78549125a9249db5edcf71603019f5f042c745d539848af514f72b82  ./app/src/main/java/com/opendex/launcher/util/RecentStore.java
@@ -32,9 +32,9 @@ a3d24d0e0853644ba57205a957a4ca1bf67ae0657e00f64c4475ba8ea1ea40a3  ./app/src/main
 208f46b003d3cad32b43b9b061ed472d5c625c46c5e063defcee488c7e6b16a4  ./app/src/main/res/values/strings.xml
 35a88257b53fddea3797e47aeffd15436423a67f3b491fba40872fd26842dd63  ./app/src/main/res/values/styles.xml
 b69cfbfc5e3f21faabace981d489fbe09130ced2d9073284a8ba242bf896a646  ./build.gradle
-653f9b6ac4c4bcb34027b9e4e3a6148d61bb7178da00a35fa9ef53df032abd5c  ./docs/PHONE_ONLY_GITHUB.md
-b6c9d3ccc24b62bfe521f97c6856bdecc2d60abdfe9fa3fde4bcbbb6f584e58f  ./docs/TERMUX_GITHUB.md
+da9d8acfd5faa9dd37da0a2780ddb8cf67f987118660ad94d8e2f2cdc9579d7e  ./docs/PHONE_ONLY_GITHUB.md
+e228ac592f970326db5a5dda3c78d8cf97e9c780c6eb23727f3c67438b566fdb  ./docs/TERMUX_GITHUB.md
 cdf1eba29f8b956697ce3e1d2f5f119026bbc62e7277d34fff4f0040ae5ae3e2  ./gradle.properties
-1440003950bc091ddef8a38f2eee4f8d93fed489885bb75cdae4695271010d89  ./scripts/preflight.py
+b618704742cede9f10ba612b36055cb053516b873d42c73092533edafa548dd1  ./scripts/preflight.py
 2f053928473621c87d77225e0479a3b539ce19cbf98cea561ad7a49d71eb4ff7  ./scripts/publish-termux.sh
 0c37080e97760f79da82086830e4d91981add31d664d29a403f34c9dc1f7fc1f  ./settings.gradle

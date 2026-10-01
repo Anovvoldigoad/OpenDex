@@ -24,6 +24,8 @@ for p in ROOT.rglob('*.java'):
     text = p.read_text(encoding='utf-8')
     if text.count('{') != text.count('}'):
         errors.append(f'Brace mismatch: {p.relative_to(ROOT)}')
+    if 'import android.app.BatteryManager;' in text:
+        errors.append(f'Invalid BatteryManager import (use android.os.BatteryManager): {p.relative_to(ROOT)}')
 
 manifest = (ROOT / 'app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
 for cls in re.findall(r'android:name="\.([A-Za-z0-9_$.]+)"', manifest):

@@ -1,6 +1,6 @@
 package com.opendex.launcher.ui;
 
-import android.app.BatteryManager;
+import android.os.BatteryManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;

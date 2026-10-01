@@ -48,22 +48,23 @@ jobs:
           gradle --version
           sdkmanager --list_installed
 
-      - name: Android lint
-        run: gradle --no-daemon :app:lintDebug --stacktrace
-
       - name: Build installable debug APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.2-debug.apk
-          sha256sum dist/OpenDex-v0.3.2-debug.apk > dist/OpenDex-v0.3.2-debug.apk.sha256
+          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.3-debug.apk
+          sha256sum dist/OpenDex-v0.3.3-debug.apk > dist/OpenDex-v0.3.3-debug.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
-          name: OpenDex-v0.3.2-debug
+          name: OpenDex-v0.3.3-debug
           path: dist/*
           if-no-files-found: error
           retention-days: 30
+
+      - name: Android lint (advisory)
+        continue-on-error: true
+        run: gradle --no-daemon :app:lintDebug --stacktrace

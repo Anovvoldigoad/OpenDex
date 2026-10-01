@@ -54,3 +54,9 @@ if errors:
     sys.exit(1)
 print('PREFLIGHT PASS')
 print('XML/source/repository structure looks consistent.')
+
+# Crash-safe startup guards added in v0.3.5
+main_activity = (ROOT / "app/src/main/java/com/opendex/launcher/MainActivity.java").read_text(encoding="utf-8")
+if "showFatal(" not in main_activity or "startOpenDexSafely" not in main_activity:
+    fail("MainActivity crash-safe startup guard missing")
+print("[preflight] crash-safe startup: PASS")

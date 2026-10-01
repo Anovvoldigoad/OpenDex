@@ -76,7 +76,7 @@ public final class SettingsActivity extends Activity {
                 startActivity(new Intent(this, TouchpadActivity.class))));
 
         root.addView(section("About"));
-        TextView note = cardText("OpenDex v0.3.2-alpha\nWindows-inspired Android desktop shell. Uses original visual assets.\n\nTap apps in OpenDex to launch them in freeform. Long-press an app for freeform, fullscreen, or close options. OEM support varies because Android vendors implement freeform differently.");
+        TextView note = cardText("OpenDex v0.3.5-alpha\nWindows-inspired Android desktop shell. Uses original visual assets.\n\nTap apps in OpenDex to launch them in freeform. Long-press an app for freeform, fullscreen, or close options. OEM support varies because Android vendors implement freeform differently.");
         root.addView(note);
         return scroll;
     }

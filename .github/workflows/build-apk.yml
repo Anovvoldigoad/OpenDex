@@ -54,13 +54,13 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.3-debug.apk
-          sha256sum dist/OpenDex-v0.3.3-debug.apk > dist/OpenDex-v0.3.3-debug.apk.sha256
+          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.5-debug.apk
+          sha256sum dist/OpenDex-v0.3.5-debug.apk > dist/OpenDex-v0.3.5-debug.apk.sha256
 
       - name: Upload APK
         uses: actions/upload-artifact@v5
         with:
-          name: OpenDex-v0.3.3-debug
+          name: OpenDex-v0.3.5-debug
           path: dist/*
           if-no-files-found: error
           retention-days: 30

@@ -15,6 +15,7 @@ public final class ExternalDisplayController implements DisplayManager.DisplayLi
     private final ShizukuController shizuku;
     private final DisplayManager displayManager;
     private final Map<Integer, DesktopPresentation> presentations = new HashMap<>();
+    private boolean registered;
 
     public ExternalDisplayController(Activity activity, ShizukuController shizuku) {
         this.activity = activity;
@@ -23,20 +24,25 @@ public final class ExternalDisplayController implements DisplayManager.DisplayLi
     }
 
     public void start() {
-        displayManager.registerDisplayListener(this, null);
+        if (displayManager == null) return;
+        try { displayManager.registerDisplayListener(this, null); registered = true; } catch (Throwable ignored) {}
         refresh();
     }
 
     public void stop() {
-        displayManager.unregisterDisplayListener(this);
+        if (displayManager != null && registered) try { displayManager.unregisterDisplayListener(this); } catch (Throwable ignored) {}
+        registered = false;
         for (DesktopPresentation p : presentations.values()) try { p.dismiss(); } catch (Throwable ignored) {}
         presentations.clear();
     }
 
     public void refresh() {
-        if (!Prefs.autoExternalDesktop(activity)) return;
-        Display[] displays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
-        for (Display display : displays) show(display);
+        if (displayManager == null || !Prefs.autoExternalDesktop(activity)) return;
+        try {
+            Display[] displays = displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_PRESENTATION);
+            if (displays == null) return;
+            for (Display display : displays) show(display);
+        } catch (Throwable ignored) {}
     }
 
     private void show(Display display) {
@@ -49,10 +55,9 @@ public final class ExternalDisplayController implements DisplayManager.DisplayLi
         } catch (Throwable ignored) {}
     }
 
-    @Override public void onDisplayAdded(int displayId) { refresh(); }
+    @Override public void onDisplayAdded(int displayId) { try { refresh(); } catch (Throwable ignored) {} }
     @Override public void onDisplayChanged(int displayId) {
-        DesktopPresentation p = presentations.get(displayId);
-        if (p != null) p.refresh();
+        try { DesktopPresentation p = presentations.get(displayId); if (p != null) p.refresh(); } catch (Throwable ignored) {}
     }
     @Override public void onDisplayRemoved(int displayId) {
         DesktopPresentation p = presentations.remove(displayId);

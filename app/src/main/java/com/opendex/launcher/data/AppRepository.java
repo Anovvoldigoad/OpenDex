@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.drawable.Drawable;
 
 import com.opendex.launcher.util.RecentStore;
 
@@ -24,21 +25,34 @@ public final class AppRepository {
     }
 
     public List<AppEntry> loadLaunchableApps() {
-        PackageManager pm = context.getPackageManager();
-        Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
-        List<ResolveInfo> resolved = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL);
         List<AppEntry> result = new ArrayList<>();
-        for (ResolveInfo info : resolved) {
-            if (info.activityInfo == null) continue;
-            String pkg = info.activityInfo.packageName;
-            String cls = info.activityInfo.name;
-            if (pkg == null || cls == null || pkg.equals(context.getPackageName())) continue;
-            CharSequence labelCs = info.loadLabel(pm);
-            String label = labelCs == null ? pkg : labelCs.toString();
-            result.add(new AppEntry(label, pkg, new ComponentName(pkg, cls), info.loadIcon(pm)));
+        try {
+            PackageManager pm = context.getPackageManager();
+            Intent intent = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
+            List<ResolveInfo> resolved = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL);
+            for (ResolveInfo info : resolved) {
+                try {
+                    if (info == null || info.activityInfo == null) continue;
+                    String pkg = info.activityInfo.packageName;
+                    String cls = info.activityInfo.name;
+                    if (pkg == null || cls == null || pkg.equals(context.getPackageName())) continue;
+                    CharSequence labelCs;
+                    try { labelCs = info.loadLabel(pm); } catch (Throwable ignored) { labelCs = pkg; }
+                    String label = labelCs == null ? pkg : labelCs.toString();
+                    Drawable icon;
+                    try { icon = info.loadIcon(pm); } catch (Throwable ignored) { icon = pm.getDefaultActivityIcon(); }
+                    result.add(new AppEntry(label, pkg, new ComponentName(pkg, cls), icon));
+                } catch (Throwable ignored) {
+                    // One broken package must never crash the launcher process.
+                }
+            }
+            try {
+                Collator collator = Collator.getInstance(Locale.getDefault());
+                result.sort(Comparator.comparing(a -> a.label, collator));
+            } catch (Throwable ignored) {}
+        } catch (Throwable ignored) {
+            // Return an empty desktop instead of killing HOME.
         }
-        Collator collator = Collator.getInstance(Locale.getDefault());
-        result.sort(Comparator.comparing(a -> a.label, collator));
         return result;
     }
 

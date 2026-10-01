@@ -1,4 +1,4 @@
-# OpenDex v0.3.3-alpha — Build status
+# OpenDex v0.3.5-alpha — Build status
 
 ## GitHub Actions wrapper-validation failure fixed
 
@@ -6,7 +6,7 @@ The v0.3.1 CI reached `gradle/actions/setup-gradle@v6` and failed **before Andro
 
 `setup-gradle` automatically validates every `gradle-wrapper.jar` in the checked-out repository against Gradle's known official checksums. The custom OpenDex bootstrap JAR was therefore correctly rejected as unknown.
 
-v0.3.3 removes the custom wrapper completely:
+v0.3.5 removes the custom wrapper completely:
 
 - no `gradle-wrapper.jar`
 - no bootstrap wrapper source
@@ -41,8 +41,14 @@ AGP 9.3 requires Gradle 9.5.0 and JDK 17, so these versions are intentionally pa
 
 A full Android build is still authoritative only in GitHub Actions because this sandbox has no Android SDK/Maven build environment.
 
-## v0.3.3 compile fix
+## v0.3.5 compile fix
 
-GitHub Actions reached `compileDebugJavaWithJavac` and exposed a real source error: `BatteryManager` was imported from `android.app`. Android defines it in `android.os`. v0.3.3 fixes that import. The `Scope.LIBRARY_GROUP_PREFIX` messages are compiler warnings from annotation metadata and are not the build-stopping error.
+GitHub Actions reached `compileDebugJavaWithJavac` and exposed a real source error: `BatteryManager` was imported from `android.app`. Android defines it in `android.os`. v0.3.5 fixes that import. The `Scope.LIBRARY_GROUP_PREFIX` messages are compiler warnings from annotation metadata and are not the build-stopping error.
 
 The workflow now builds and uploads the APK before running lint. Lint remains enabled as an advisory check so a non-critical lint finding cannot prevent a successfully compiled APK from being downloaded.
+
+
+## v0.3.5 lint fix
+- Moved API-27-only `android:windowLightNavigationBar` attributes to `values-v27/styles.xml`.
+- Base `values/styles.xml` remains API 26 safe.
+- Added preflight regression guard for this resource mistake.

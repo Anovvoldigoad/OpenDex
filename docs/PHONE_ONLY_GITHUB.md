@@ -10,8 +10,8 @@ You do not need Android Studio or a PC.
 4. Open **Build OpenDex APK**.
 5. Tap **Run workflow**.
 6. After the run is green, open that run.
-7. Under **Artifacts**, download **OpenDex-v0.3.3-debug**.
-8. Extract the artifact ZIP on the phone and install `OpenDex-v0.3.3-debug.apk`.
+7. Under **Artifacts**, download **OpenDex-v0.3.5-debug**.
+8. Extract the artifact ZIP on the phone and install `OpenDex-v0.3.5-debug.apk`.
 
 The APK produced by `assembleDebug` is signed with the Android debug key and is directly installable for testing.
 

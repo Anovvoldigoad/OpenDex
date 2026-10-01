@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base resources are API 26 safe. windowLightNavigationBar is API 27+, so
-         its overrides live in values-v27/styles.xml. -->
     <style name="Theme.OpenDex" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowActionModeOverlay">true</item>
@@ -9,14 +7,14 @@
         <item name="android:navigationBarColor">#0B1020</item>
         <item name="android:statusBarColor">#0B1020</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
     <style name="Theme.OpenDex.Settings" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:colorAccent">#0067C0</item>
-        <!-- API 26 cannot request dark navigation-bar icons. Keep nav bar dark
-             here so its default light icons remain visible. API 27+ overrides it. -->
-        <item name="android:navigationBarColor">#0B1020</item>
+        <item name="android:navigationBarColor">#F3F3F3</item>
         <item name="android:statusBarColor">#F3F3F3</item>
         <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

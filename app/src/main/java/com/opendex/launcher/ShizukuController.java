@@ -73,18 +73,20 @@ public final class ShizukuController {
 
     public void start(StateListener stateListener) {
         listener = stateListener;
-        Shizuku.addBinderReceivedListenerSticky(binderReceived);
-        Shizuku.addBinderDeadListener(binderDead);
-        Shizuku.addRequestPermissionResultListener(permissionResult);
-        if (hasPermission()) bindUserService();
+        try { Shizuku.addBinderReceivedListenerSticky(binderReceived); } catch (Throwable ignored) {}
+        try { Shizuku.addBinderDeadListener(binderDead); } catch (Throwable ignored) {}
+        try { Shizuku.addRequestPermissionResultListener(permissionResult); } catch (Throwable ignored) {}
+        // Do not bind synchronously during Activity construction. Some OEMs have
+        // fragile Shizuku UserService startup paths; let HOME become visible first.
+        if (hasPermission()) main.postDelayed(this::bindUserService, 450);
         dispatchState();
     }
 
     public void release() {
         try { Shizuku.unbindUserService(serviceArgs, connection, false); } catch (Throwable ignored) {}
-        Shizuku.removeBinderReceivedListener(binderReceived);
-        Shizuku.removeBinderDeadListener(binderDead);
-        Shizuku.removeRequestPermissionResultListener(permissionResult);
+        try { Shizuku.removeBinderReceivedListener(binderReceived); } catch (Throwable ignored) {}
+        try { Shizuku.removeBinderDeadListener(binderDead); } catch (Throwable ignored) {}
+        try { Shizuku.removeRequestPermissionResultListener(permissionResult); } catch (Throwable ignored) {}
         listener = null;
     }
 
@@ -150,7 +152,9 @@ public final class ShizukuController {
 
     private void dispatchState() {
         StateListener l = listener;
-        if (l != null) main.post(() -> l.onStateChanged(getState()));
+        if (l != null) main.post(() -> {
+            try { l.onStateChanged(getState()); } catch (Throwable ignored) {}
+        });
     }
 
     public void execute(String command, CommandCallback callback) {

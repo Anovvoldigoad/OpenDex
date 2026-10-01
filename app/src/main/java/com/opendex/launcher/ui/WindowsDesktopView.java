@@ -335,19 +335,32 @@ public final class WindowsDesktopView extends FrameLayout {
     }
 
     public void refreshApps() {
-        io.execute(() -> {
-            List<AppEntry> loaded = repository.loadLaunchableApps();
-            main.post(() -> {
-                allApps.clear();
-                allApps.addAll(loaded);
-                renderStartContent();
-                renderTaskbarApps();
+        try {
+            io.execute(() -> {
+                try {
+                    List<AppEntry> loaded = repository.loadLaunchableApps();
+                    main.post(() -> {
+                        try {
+                            allApps.clear();
+                            allApps.addAll(loaded);
+                            renderStartContent();
+                            renderTaskbarApps();
+                        } catch (Throwable t) {
+                            Toast.makeText(getContext(), "App list render failed: " + t.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                } catch (Throwable t) {
+                    main.post(() -> Toast.makeText(getContext(), "App scan failed: " + t.getClass().getSimpleName(), Toast.LENGTH_LONG).show());
+                }
             });
-        });
+        } catch (Throwable t) {
+            Toast.makeText(getContext(), "App worker unavailable: " + t.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+        }
     }
 
     public void refreshStatus() {
-        if (shizukuText != null) shizukuText.setText(shizuku.getStateLabel());
+        try { if (shizukuText != null) shizukuText.setText(shizuku.getStateLabel()); }
+        catch (Throwable t) { if (shizukuText != null) shizukuText.setText("Shizuku unavailable"); }
     }
 
     private void renderStartContent() {
@@ -600,16 +613,21 @@ public final class WindowsDesktopView extends FrameLayout {
     private void scheduleClock() {
         main.post(new Runnable() {
             @Override public void run() {
-                if (clockText != null) {
-                    String fmt = isWide() ? "HH:mm\ndd/MM/yyyy" : "HH:mm\ndd/MM";
-                    clockText.setText(new SimpleDateFormat(fmt, Locale.getDefault()).format(new Date()));
+                try {
+                    if (clockText != null) {
+                        String fmt = isWide() ? "HH:mm\ndd/MM/yyyy" : "HH:mm\ndd/MM";
+                        clockText.setText(new SimpleDateFormat(fmt, Locale.getDefault()).format(new Date()));
+                    }
+                    if (batteryText != null) {
+                        BatteryManager bm = (BatteryManager) getContext().getSystemService(Context.BATTERY_SERVICE);
+                        int pct = bm == null ? -1 : bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                        batteryText.setText(pct >= 0 ? pct + "%" : "▰");
+                    }
+                } catch (Throwable ignored) {
+                    if (batteryText != null) batteryText.setText("▰");
+                } finally {
+                    main.postDelayed(this, 30_000);
                 }
-                if (batteryText != null) {
-                    BatteryManager bm = (BatteryManager) getContext().getSystemService(Context.BATTERY_SERVICE);
-                    int pct = bm == null ? -1 : bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                    batteryText.setText(pct >= 0 ? pct + "%" : "▰");
-                }
-                main.postDelayed(this, 30_000);
             }
         });
     }

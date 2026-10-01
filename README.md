@@ -1,4 +1,4 @@
-# OpenDex Launcher v0.3.0-alpha
+# OpenDex Launcher v0.3.1-alpha
 
 OpenDex is an experimental Windows-11-inspired Android desktop shell designed for phones/tablets and secondary displays. It is a real Android HOME launcher, not a web mockup.
 
@@ -26,8 +26,8 @@ The repository contains `.github/workflows/build-apk.yml`.
 1. Put all repository files on GitHub with `.github` at the repository root.
 2. Open **Actions** → **Build OpenDex APK** → **Run workflow**.
 3. Wait for the green run.
-4. Download the **OpenDex-v0.3.0-debug** artifact.
-5. Extract it and install `OpenDex-v0.3.0-debug.apk`.
+4. Download the **OpenDex-v0.3.1-debug** artifact.
+5. Extract it and install `OpenDex-v0.3.1-debug.apk`.
 
 See [`docs/PHONE_ONLY_GITHUB.md`](docs/PHONE_ONLY_GITHUB.md) for the phone-only walkthrough.
 
@@ -35,10 +35,10 @@ See [`docs/PHONE_ONLY_GITHUB.md`](docs/PHONE_ONLY_GITHUB.md) for the phone-only 
 
 The workflow intentionally pins the toolchain instead of depending on whatever a runner happens to contain:
 
-- Android Gradle Plugin: **9.3.0**
+- Android Gradle Plugin: **9.3.2**
 - Gradle: **9.5.0**
 - JDK: **17 / Temurin**
-- compileSdk / targetSdk: **37**
+- compileSdk / targetSdk: **36**
 - Android Build Tools: **36.0.0**
 - Shizuku API/provider: **13.1.5**
 - Android command-line tools are set up by `android-actions/setup-android@v4`.
@@ -52,7 +52,7 @@ Android lintDebug
     ↓
 assembleDebug
     ↓
-OpenDex-v0.3.0-debug.apk
+OpenDex-v0.3.1-debug.apk
     ↓
 GitHub Actions artifact
 ```
@@ -129,6 +129,6 @@ settings.gradle
 
 ## Project status
 
-This v0.3.0 source tree has been repository-preflight checked (XML parse, manifest component presence, required files, Java brace structure). The provided GitHub workflow is the authoritative compile/lint step because the generation sandbox does not contain an Android SDK or outbound Gradle/Maven access.
+This v0.3.1 source tree has been repository-preflight checked (XML parse, manifest component presence, required files, Java brace structure). The provided GitHub workflow is the authoritative compile/lint step because the generation sandbox does not contain an Android SDK or outbound Gradle/Maven access.
 
 The first GitHub run therefore provides the real `lintDebug + assembleDebug` verdict and, when successful, the actual APK artifact.

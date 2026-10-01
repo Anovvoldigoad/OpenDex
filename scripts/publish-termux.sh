@@ -26,7 +26,7 @@ if [ ! -d .git ]; then
 fi
 git add .
 if ! git diff --cached --quiet; then
-  git -c user.name="OpenDex Mobile" -c user.email="opendex-mobile@users.noreply.github.com" commit -m "OpenDex v0.3.0-alpha"
+  git -c user.name="OpenDex Mobile" -c user.email="opendex-mobile@users.noreply.github.com" commit -m "OpenDex v0.3.1-alpha"
 fi
 git branch -M main
 

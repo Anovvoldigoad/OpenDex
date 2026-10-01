@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import re
+import sys
+import xml.etree.ElementTree as ET
+
+ROOT = Path(__file__).resolve().parents[1]
+errors = []
+
+for p in ROOT.rglob('*.xml'):
+    try:
+        ET.parse(p)
+    except Exception as e:
+        errors.append(f'XML parse failed: {p.relative_to(ROOT)}: {e}')
+
+for p in ROOT.rglob('*.java'):
+    text = p.read_text(encoding='utf-8')
+    if text.count('{') != text.count('}'):
+        errors.append(f'Brace mismatch: {p.relative_to(ROOT)}')
+
+manifest = (ROOT / 'app/src/main/AndroidManifest.xml').read_text(encoding='utf-8')
+for cls in re.findall(r'android:name="\.([A-Za-z0-9_$.]+)"', manifest):
+    if cls.startswith('permission.'):
+        continue
+    java = ROOT / 'app/src/main/java/com/opendex/launcher' / (cls.replace('.', '/') + '.java')
+    if not java.exists() and cls not in {'app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE'}:
+        errors.append(f'Manifest class missing: .{cls} -> {java.relative_to(ROOT)}')
+
+required = [
+    '.github/workflows/build-apk.yml',
+    'app/build.gradle',
+    'app/src/main/aidl/com/opendex/launcher/IUserShellService.aidl',
+    'app/src/main/java/com/opendex/launcher/ShizukuController.java',
+    'app/src/main/java/com/opendex/launcher/shell/UserShellService.java',
+    'app/src/main/java/com/opendex/launcher/ui/WindowsDesktopView.java',
+]
+for item in required:
+    if not (ROOT / item).exists():
+        errors.append(f'Required file missing: {item}')
+
+if errors:
+    print('PREFLIGHT FAIL')
+    for e in errors:
+        print(' -', e)
+    sys.exit(1)
+print('PREFLIGHT PASS')
+print('XML/source/repository structure looks consistent.')

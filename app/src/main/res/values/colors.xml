@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="opendex_blue">#4CC2FF</color>
+    <color name="opendex_bg">#0B1020</color>
+    <color name="opendex_panel">#D91B2233</color>
+</resources>

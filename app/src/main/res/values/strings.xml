@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenDex</string>
+    <string name="taskbar_channel_name">OpenDex taskbar</string>
+</resources>

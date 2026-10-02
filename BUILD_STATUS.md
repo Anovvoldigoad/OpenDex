@@ -1,10 +1,14 @@
-# v0.5.0 status
+# Build status - v0.5.1
 
-- Original DroidUP launcher payload: unchanged.
-- Trusted shell-owned VirtualDisplay: retained.
-- Direct InputManager injection: retained.
-- **New:** TaskDisplayArea is explicitly switched to `WINDOWING_MODE_FREEFORM` (5).
-- **New:** virtual desktop is locked landscape and app orientation requests are ignored.
-- **New:** session aborts with diagnostics when per-display freeform cannot be enabled.
+Static/source checks performed locally:
 
-Hardware verification is still required because OEM Android 16 builds may differ in WindowManager shell support.
+- original DroidUP launcher SHA-256 guard retained
+- launcher fullscreen (`--windowingMode 1`) guard added
+- freeform display (`wm set-display-windowing-mode ... 5`) guard retained
+- dynamic resolution guard added
+- automatic phone-resolution detection guard added
+- custom resolution mode guard added
+- XML parse checks
+- GitHub workflow pinned toolchain retained
+
+Full Android compilation is performed by the included GitHub Actions workflow.

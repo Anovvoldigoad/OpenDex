@@ -30,6 +30,7 @@ if list(root.rglob('gradle-wrapper.jar')):
 
 required = [
     root / 'app/src/main/java/com/opendex/droiduphost/MainActivity.java',
+    root / 'app/src/main/java/com/opendex/droiduphost/DesktopConfig.java',
     root / 'app/src/main/java/com/opendex/droiduphost/DesktopActivity.java',
     root / 'app/src/main/java/com/opendex/droiduphost/ShizukuHostBridge.java',
     root / 'app/src/main/java/com/opendex/droiduphost/shell/HostShellService.java',
@@ -67,6 +68,22 @@ if 'android.view.Surface' not in aidl:
 if 'input touchscreen -d' not in bridge:
     fail('slow input fallback missing')
 
+if '--windowingMode 1' not in bridge:
+    fail('DroidUP launcher must be launched fullscreen with --windowingMode 1')
+if 'startOriginalLauncherFullscreen' not in bridge:
+    fail('fullscreen launcher entry point missing')
+if 'DesktopConfig' not in desktop:
+    # DesktopActivity receives the selected resolution as extras; MainActivity owns DesktopConfig.
+    pass
+main_path = root / 'app/src/main/java/com/opendex/droiduphost/MainActivity.java'
+main = main_path.read_text(encoding='utf-8') if main_path.exists() else ''
+if 'DesktopConfig.detectCurrentPixels' not in main:
+    fail('automatic phone resolution detection missing')
+if 'MODE_CUSTOM' not in (root / 'app/src/main/java/com/opendex/droiduphost/DesktopConfig.java').read_text(encoding='utf-8'):
+    fail('custom resolution mode missing')
+if 'VD_WIDTH' in desktop or 'VD_HEIGHT' in desktop:
+    fail('DesktopActivity must not hardcode virtual display resolution')
+
 # Back/key routing guards.
 if 'void onBackPressed(' in desktop or 'super.onBackPressed(' in desktop:
     fail('deprecated Activity.onBackPressed detected; use OnBackPressedDispatcher')
@@ -93,6 +110,6 @@ if errors:
 
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
-print('Architecture: shell-owned TRUSTED virtual display + per-display WINDOWING_MODE_FREEFORM(5)')
+print('Architecture: trusted freeform display + fullscreen DroidUP launcher + dynamic resolution')
 print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
 print('CI: ubuntu-24.04 + Node-24 GitHub actions')

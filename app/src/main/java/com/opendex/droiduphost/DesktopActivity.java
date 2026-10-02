@@ -21,19 +21,24 @@ import androidx.activity.OnBackPressedCallback;
 
 /**
  * Displays the ORIGINAL, byte-identical DroidUP launcher.
- * The virtual display itself is owned by the Shizuku shell UserService so it can be TRUSTED.
+ * The trusted/freeform virtual display is owned by the Shizuku shell UserService.
  */
 public final class DesktopActivity extends ComponentActivity implements SurfaceHolder.Callback {
-    private static final int VD_WIDTH = 1920;
-    private static final int VD_HEIGHT = 1080;
-    private static final int VD_DPI = 240;
+    public static final String EXTRA_WIDTH = "desktop_width";
+    public static final String EXTRA_HEIGHT = "desktop_height";
+    public static final String EXTRA_DPI = "desktop_dpi";
 
     private SurfaceView surfaceView;
+    private FrameLayout root;
     private TextView statusView;
     private ShizukuHostBridge bridge;
     private boolean surfaceReady;
     private boolean sessionStarting;
     private int displayId = -1;
+
+    private int vdWidth;
+    private int vdHeight;
+    private int vdDpi;
 
     private float downX, downY;
     private long downTime;
@@ -47,8 +52,13 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         enterImmersive();
 
-        // AndroidX bridges legacy back buttons and modern predictive-back gestures.
-        // If the DroidUP desktop is active, Back belongs to that display, not to the host Activity.
+        vdWidth = Math.max(800, getIntent().getIntExtra(EXTRA_WIDTH, 1920));
+        vdHeight = Math.max(480, getIntent().getIntExtra(EXTRA_HEIGHT, 1080));
+        if (vdHeight > vdWidth) {
+            int t = vdWidth; vdWidth = vdHeight; vdHeight = t;
+        }
+        vdDpi = Math.max(120, Math.min(640, getIntent().getIntExtra(EXTRA_DPI, 240)));
+
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -62,18 +72,15 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
             }
         });
 
-        FrameLayout root = new FrameLayout(this);
+        root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
         surfaceView = new SurfaceView(this);
         surfaceView.getHolder().addCallback(this);
-        surfaceView.getHolder().setFixedSize(VD_WIDTH, VD_HEIGHT);
+        surfaceView.getHolder().setFixedSize(vdWidth, vdHeight);
         surfaceView.setFocusable(true);
         surfaceView.setFocusableInTouchMode(true);
         surfaceView.setOnTouchListener(this::onDesktopTouch);
-        // Keep hardware-key forwarding on the focused desktop surface.
-        // Do not override/call ComponentActivity key-dispatch implementation: AndroidX marks
-        // that implementation as library-group restricted and lint correctly rejects it.
         surfaceView.setOnKeyListener((v, keyCode, event) -> {
             if (displayId < 0) return false;
             if (keyCode == KeyEvent.KEYCODE_BACK
@@ -82,23 +89,25 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                     || keyCode == KeyEvent.KEYCODE_POWER) {
                 return false;
             }
-            // Consume DOWN locally; inject one complete DOWN+UP pair on ACTION_UP.
             if (event.getAction() == KeyEvent.ACTION_DOWN) return true;
             if (event.getAction() != KeyEvent.ACTION_UP) return false;
-            if (!bridge.injectKeyFast(displayId, keyCode)) {
-                bridge.keyFallback(displayId, keyCode);
-            }
+            if (!bridge.injectKeyFast(displayId, keyCode)) bridge.keyFallback(displayId, keyCode);
             return true;
         });
-        root.addView(surfaceView, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        FrameLayout.LayoutParams surfaceLp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
+        root.addView(surfaceView, surfaceLp);
+
+        // Preserve the desktop aspect ratio for manual resolutions instead of stretching it.
+        root.addOnLayoutChangeListener((v, l, t, r, b, oldL, oldT, oldR, oldB) -> fitSurfaceToRoot(r - l, b - t));
 
         statusView = new TextView(this);
         statusView.setTextColor(Color.WHITE);
         statusView.setTextSize(13);
         statusView.setBackgroundColor(0xB0000000);
         statusView.setPadding(dp(12), dp(8), dp(12), dp(8));
-        statusView.setText("Menyiapkan DroidUP Dex trusted display…");
+        statusView.setText("Menyiapkan DroidUP Dex " + vdWidth + "×" + vdHeight + " @ " + vdDpi + "dpi…");
         FrameLayout.LayoutParams statusLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | Gravity.START);
@@ -112,6 +121,27 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
         bridge.start(this::maybeStartSession);
     }
 
+    private void fitSurfaceToRoot(int rootW, int rootH) {
+        if (rootW <= 0 || rootH <= 0 || surfaceView == null) return;
+        float target = vdWidth / (float) vdHeight;
+        float actual = rootW / (float) rootH;
+        int outW, outH;
+        if (actual > target) {
+            outH = rootH;
+            outW = Math.round(outH * target);
+        } else {
+            outW = rootW;
+            outH = Math.round(outW / target);
+        }
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) surfaceView.getLayoutParams();
+        if (lp.width != outW || lp.height != outH || lp.gravity != Gravity.CENTER) {
+            lp.width = outW;
+            lp.height = outH;
+            lp.gravity = Gravity.CENTER;
+            surfaceView.setLayoutParams(lp);
+        }
+    }
+
     private void maybeStartSession() {
         if (sessionStarting || !surfaceReady || !bridge.isReady()) {
             if (!bridge.isReady()) status("Menunggu Shizuku… " + bridge.status());
@@ -120,7 +150,7 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
         sessionStarting = true;
         status("Mengaktifkan freeform…");
         bridge.enableDroidUpSettings(result -> {
-            status("Membuat TRUSTED virtual display via Shizuku…");
+            status("Membuat TRUSTED virtual display " + vdWidth + "×" + vdHeight + "…");
             createDisplayAndLaunch();
         });
     }
@@ -132,7 +162,7 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
         }
         bridge.createTrustedDesktopDisplay(
                 surfaceView.getHolder().getSurface(),
-                VD_WIDTH, VD_HEIGHT, VD_DPI,
+                vdWidth, vdHeight, vdDpi,
                 result -> {
                     if (!result.startsWith("OK|")) {
                         sessionStarting = false;
@@ -148,22 +178,24 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                         return;
                     }
 
-                    // Do not pretend that a fullscreen virtual display is a DeX session.
                     if (result.contains("|freeform=FAILED")) {
                         sessionStarting = false;
                         status("Display berhasil dibuat, tapi FREEFORM display gagal.\n\n" + result
-                                + "\n\nJangan lanjut: ROM belum menerima per-display windowing mode 5.");
+                                + "\n\nROM belum menerima per-display windowing mode 5.");
                         return;
                     }
 
-                    status("Display " + displayId + " · FREEFORM desktop\n" + result + "\nMembuka DroidUP Launcher…");
+                    status("Display " + displayId + " · FREEFORM " + vdWidth + "×" + vdHeight
+                            + " @ " + vdDpi + "dpi\n"
+                            + "Launcher dipaksa FULLSCREEN, aplikasi tetap freeform.\n" + result);
                     bridge.exec("am force-stop --user current com.levelup.droiduplauncher", ignored ->
-                            bridge.startOriginalLauncher(displayId, launchResult -> {
+                            bridge.startOriginalLauncherFullscreen(displayId, launchResult -> {
                                 if (launchResult.startsWith("EXIT=0")) {
-                                    new Handler(Looper.getMainLooper()).postDelayed(() -> statusView.setVisibility(View.GONE), 900);
+                                    new Handler(Looper.getMainLooper()).postDelayed(
+                                            () -> statusView.setVisibility(View.GONE), 900);
                                     surfaceView.requestFocus();
                                 } else {
-                                    status("Launcher gagal dibuka:\n" + launchResult);
+                                    status("Launcher gagal dibuka fullscreen:\n" + launchResult);
                                 }
                             })
                     );
@@ -173,10 +205,10 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
 
     private boolean onDesktopTouch(View v, MotionEvent e) {
         if (displayId < 0) return true;
-        float sx = VD_WIDTH / (float) Math.max(1, v.getWidth());
-        float sy = VD_HEIGHT / (float) Math.max(1, v.getHeight());
-        float x = clamp(e.getX() * sx, 0, VD_WIDTH - 1);
-        float y = clamp(e.getY() * sy, 0, VD_HEIGHT - 1);
+        float sx = vdWidth / (float) Math.max(1, v.getWidth());
+        float sy = vdHeight / (float) Math.max(1, v.getHeight());
+        float x = clamp(e.getX() * sx, 0, vdWidth - 1);
+        float y = clamp(e.getY() * sy, 0, vdHeight - 1);
         long now = SystemClock.uptimeMillis();
 
         switch (e.getActionMasked()) {
@@ -187,27 +219,19 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                 lastMoveSent = now;
                 fastInput = bridge.injectPointer(displayId, MotionEvent.ACTION_DOWN, x, y, downTime, now);
                 return true;
-
             case MotionEvent.ACTION_MOVE:
-                // 60-90Hz-ish throttle avoids Binder spam while remaining much smoother than shell input.
                 if (fastInput && now - lastMoveSent >= 12) {
                     fastInput = bridge.injectPointer(displayId, MotionEvent.ACTION_MOVE, x, y, downTime, now);
                     lastMoveSent = now;
                 }
                 return true;
-
             case MotionEvent.ACTION_UP:
-                if (fastInput) {
-                    boolean ok = bridge.injectPointer(displayId, MotionEvent.ACTION_UP, x, y, downTime, now);
-                    if (ok) return true;
-                }
+                if (fastInput && bridge.injectPointer(displayId, MotionEvent.ACTION_UP, x, y, downTime, now)) return true;
                 slowFallback(x, y, now);
                 return true;
-
             case MotionEvent.ACTION_CANCEL:
                 if (fastInput) bridge.injectPointer(displayId, MotionEvent.ACTION_CANCEL, x, y, downTime, now);
                 return true;
-
             default:
                 return true;
         }
@@ -224,7 +248,6 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                     Math.round(x), Math.round(y), (int) duration);
         }
     }
-
 
     @Override public void surfaceCreated(SurfaceHolder holder) {
         surfaceReady = true;

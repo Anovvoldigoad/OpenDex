@@ -247,8 +247,11 @@ public final class ShizukuHostBridge {
         exec("input -d " + displayId + " keyevent " + keyCode, null);
     }
 
-    public void startOriginalLauncher(int displayId, ResultCallback cb) {
+    public void startOriginalLauncherFullscreen(int displayId, ResultCallback cb) {
+        // The display itself stays FREEFORM for normal apps, but the desktop launcher is
+        // explicitly launched FULLSCREEN (1) so it behaves like a desktop background.
         exec("am start --user current --display " + displayId
+                + " --windowingMode 1"
                 + " -n com.levelup.droiduplauncher/.MainActivity", cb);
     }
 }

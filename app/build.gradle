@@ -10,8 +10,8 @@ android {
         applicationId 'com.opendex.droiduphost'
         minSdk 26
         targetSdk 36
-        versionCode 42
-        versionName '0.4.2-droidup-trusted-lintclean'
+        versionCode 43
+        versionName '0.4.3-droidup-trusted-ciclean'
     }
 
     buildFeatures {

@@ -71,6 +71,25 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
         surfaceView.setFocusable(true);
         surfaceView.setFocusableInTouchMode(true);
         surfaceView.setOnTouchListener(this::onDesktopTouch);
+        // Keep hardware-key forwarding on the focused desktop surface.
+        // Do not override/call ComponentActivity key-dispatch implementation: AndroidX marks
+        // that implementation as library-group restricted and lint correctly rejects it.
+        surfaceView.setOnKeyListener((v, keyCode, event) -> {
+            if (displayId < 0) return false;
+            if (keyCode == KeyEvent.KEYCODE_BACK
+                    || keyCode == KeyEvent.KEYCODE_VOLUME_UP
+                    || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
+                    || keyCode == KeyEvent.KEYCODE_POWER) {
+                return false;
+            }
+            // Consume DOWN locally; inject one complete DOWN+UP pair on ACTION_UP.
+            if (event.getAction() == KeyEvent.ACTION_DOWN) return true;
+            if (event.getAction() != KeyEvent.ACTION_UP) return false;
+            if (!bridge.injectKeyFast(displayId, keyCode)) {
+                bridge.keyFallback(displayId, keyCode);
+            }
+            return true;
+        });
         root.addView(surfaceView, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
@@ -196,17 +215,6 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
             bridge.swipeFallback(displayId, Math.round(downX), Math.round(downY),
                     Math.round(x), Math.round(y), (int) duration);
         }
-    }
-
-    @Override public boolean dispatchKeyEvent(KeyEvent event) {
-        if (displayId >= 0 && event.getAction() == KeyEvent.ACTION_UP) {
-            int code = event.getKeyCode();
-            if (code != KeyEvent.KEYCODE_VOLUME_UP && code != KeyEvent.KEYCODE_VOLUME_DOWN && code != KeyEvent.KEYCODE_POWER) {
-                if (!bridge.injectKeyFast(displayId, code)) bridge.keyFallback(displayId, code);
-                return true;
-            }
-        }
-        return super.dispatchKeyEvent(event);
     }
 
 

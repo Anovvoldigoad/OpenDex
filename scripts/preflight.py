@@ -1,69 +1,96 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import hashlib, sys, xml.etree.ElementTree as ET
+import hashlib
+import sys
+import xml.etree.ElementTree as ET
 
 root = Path(__file__).resolve().parents[1]
-errors=[]
+errors = []
 
-payload=root/'app/src/main/assets/DroidUP-Dex-Launcher.apk'
-expected='d915c440bbf9d28dda5b379ce07519fe06d3904e09a1bf7b4dcfabd963a8f0f2'
+def fail(message):
+    errors.append(message)
+
+payload = root / 'app/src/main/assets/DroidUP-Dex-Launcher.apk'
+expected = 'd915c440bbf9d28dda5b379ce07519fe06d3904e09a1bf7b4dcfabd963a8f0f2'
 if not payload.is_file():
-    errors.append('missing original DroidUP launcher payload')
+    fail('missing original DroidUP launcher payload')
 else:
-    got=hashlib.sha256(payload.read_bytes()).hexdigest()
+    got = hashlib.sha256(payload.read_bytes()).hexdigest()
     if got != expected:
-        errors.append(f'DroidUP launcher payload changed: {got}')
+        fail(f'DroidUP launcher payload changed: {got}')
 
-for p in root.rglob('*.xml'):
-    try: ET.parse(p)
-    except Exception as e: errors.append(f'XML invalid {p.relative_to(root)}: {e}')
+for path in root.rglob('*.xml'):
+    try:
+        ET.parse(path)
+    except Exception as exc:
+        fail(f'XML invalid {path.relative_to(root)}: {exc}')
 
 if list(root.rglob('gradle-wrapper.jar')):
-    errors.append('gradle-wrapper.jar must not be committed; CI installs Gradle directly')
+    fail('gradle-wrapper.jar must not be committed; CI installs Gradle directly')
 
-required=[
-    root/'app/src/main/java/com/opendex/droiduphost/MainActivity.java',
-    root/'app/src/main/java/com/opendex/droiduphost/DesktopActivity.java',
-    root/'app/src/main/java/com/opendex/droiduphost/ShizukuHostBridge.java',
-    root/'app/src/main/java/com/opendex/droiduphost/shell/HostShellService.java',
-    root/'app/src/main/aidl/com/opendex/droiduphost/IHostShellService.aidl',
+required = [
+    root / 'app/src/main/java/com/opendex/droiduphost/MainActivity.java',
+    root / 'app/src/main/java/com/opendex/droiduphost/DesktopActivity.java',
+    root / 'app/src/main/java/com/opendex/droiduphost/ShizukuHostBridge.java',
+    root / 'app/src/main/java/com/opendex/droiduphost/shell/HostShellService.java',
+    root / 'app/src/main/aidl/com/opendex/droiduphost/IHostShellService.aidl',
 ]
-for p in required:
-    if not p.is_file(): errors.append(f'missing {p.relative_to(root)}')
+for path in required:
+    if not path.is_file():
+        fail(f'missing {path.relative_to(root)}')
 
-service=(root/'app/src/main/java/com/opendex/droiduphost/shell/HostShellService.java').read_text()
-desktop=(root/'app/src/main/java/com/opendex/droiduphost/DesktopActivity.java').read_text()
-aidl=(root/'app/src/main/aidl/com/opendex/droiduphost/IHostShellService.aidl').read_text()
+service_path = root / 'app/src/main/java/com/opendex/droiduphost/shell/HostShellService.java'
+desktop_path = root / 'app/src/main/java/com/opendex/droiduphost/DesktopActivity.java'
+bridge_path = root / 'app/src/main/java/com/opendex/droiduphost/ShizukuHostBridge.java'
+aidl_path = root / 'app/src/main/aidl/com/opendex/droiduphost/IHostShellService.aidl'
 
-checks={
-    'trusted display flag':'VD_TRUSTED',
-    'shell-owned display creation':'createDesktopDisplay',
-    'scrcpy touch flag':'VD_SUPPORTS_TOUCH',
-    'direct input injection':'injectInputEvent',
-}
-for label,needle in checks.items():
-    if needle not in service: errors.append(f'missing {label}: {needle}')
+service = service_path.read_text(encoding='utf-8') if service_path.exists() else ''
+desktop = desktop_path.read_text(encoding='utf-8') if desktop_path.exists() else ''
+bridge = bridge_path.read_text(encoding='utf-8') if bridge_path.exists() else ''
+aidl = aidl_path.read_text(encoding='utf-8') if aidl_path.exists() else ''
+
+for label, needle in {
+    'trusted display flag': 'VD_TRUSTED',
+    'shell-owned display creation': 'createDesktopDisplay',
+    'scrcpy touch flag': 'VD_SUPPORTS_TOUCH',
+    'direct input injection': 'injectInputEvent',
+}.items():
+    if needle not in service:
+        fail(f'missing {label}: {needle}')
 
 if 'DisplayManager' in desktop:
-    errors.append('DesktopActivity must not create the VirtualDisplay; it must be shell-owned')
+    fail('DesktopActivity must not create the VirtualDisplay; it must be shell-owned')
 if 'android.view.Surface' not in aidl:
-    errors.append('AIDL must pass Surface to shell UserService')
-if 'input touchscreen -d' not in (root/'app/src/main/java/com/opendex/droiduphost/ShizukuHostBridge.java').read_text():
-    errors.append('slow input fallback missing')
+    fail('AIDL must pass Surface to shell UserService')
+if 'input touchscreen -d' not in bridge:
+    fail('slow input fallback missing')
+
+# Back/key routing guards.
+if 'void onBackPressed(' in desktop or 'super.onBackPressed(' in desktop:
+    fail('deprecated Activity.onBackPressed detected; use OnBackPressedDispatcher')
+if 'getOnBackPressedDispatcher()' not in desktop:
+    fail('DesktopActivity must register OnBackPressedDispatcher')
+if '@Override public boolean dispatchKeyEvent' in desktop or 'super.dispatchKeyEvent(' in desktop:
+    fail('ComponentActivity dispatchKeyEvent override/call must not be used; AndroidX marks it RestrictedApi')
+if 'surfaceView.setOnKeyListener' not in desktop:
+    fail('hardware keyboard forwarding must use the focused SurfaceView OnKeyListener')
+
+workflow = (root / '.github/workflows/build-apk.yml').read_text(encoding='utf-8')
+if 'ubuntu-24.04' not in workflow:
+    fail('CI runner must be pinned to ubuntu-24.04')
+if 'actions/checkout@v7' not in workflow:
+    fail('CI must use Node-24 checkout action')
+if 'actions/upload-artifact@v7' not in workflow:
+    fail('CI must use Node-24 upload-artifact action')
 
 if errors:
     print('PREFLIGHT FAILED')
-    for e in errors: print(' -',e)
+    for error in errors:
+        print(' -', error)
     sys.exit(1)
+
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
 print('Architecture: shell-owned TRUSTED virtual display + direct InputManager injection')
-
-# Predictive-back migration guard: do not reintroduce deprecated Activity.onBackPressed().
-desktop = root / "app/src/main/java/com/opendex/droiduphost/DesktopActivity.java"
-if desktop.exists():
-    ds = desktop.read_text(encoding="utf-8")
-    if "void onBackPressed(" in ds or "super.onBackPressed(" in ds:
-        fail("Deprecated onBackPressed override/call detected; use OnBackPressedDispatcher")
-    if "getOnBackPressedDispatcher()" not in ds:
-        fail("DesktopActivity must register OnBackPressedDispatcher")
+print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
+print('CI: ubuntu-24.04 + Node-24 GitHub actions')

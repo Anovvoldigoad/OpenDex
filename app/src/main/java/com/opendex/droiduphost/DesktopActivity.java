@@ -148,7 +148,15 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                         return;
                     }
 
-                    status("Trusted display id=" + displayId + " · " + result + "\nMembuka DroidUP Launcher…");
+                    // Do not pretend that a fullscreen virtual display is a DeX session.
+                    if (result.contains("|freeform=FAILED")) {
+                        sessionStarting = false;
+                        status("Display berhasil dibuat, tapi FREEFORM display gagal.\n\n" + result
+                                + "\n\nJangan lanjut: ROM belum menerima per-display windowing mode 5.");
+                        return;
+                    }
+
+                    status("Display " + displayId + " · FREEFORM desktop\n" + result + "\nMembuka DroidUP Launcher…");
                     bridge.exec("am force-stop --user current com.levelup.droiduplauncher", ignored ->
                             bridge.startOriginalLauncher(displayId, launchResult -> {
                                 if (launchResult.startsWith("EXIT=0")) {

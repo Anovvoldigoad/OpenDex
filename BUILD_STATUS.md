@@ -1,10 +1,10 @@
-# Build Status — v0.4.3
+# v0.5.0 status
 
-Static patch status:
-- Trusted-display architecture retained from v0.4.1.
-- Deprecated `onBackPressed()` override removed.
-- AndroidX `OnBackPressedDispatcher` added for legacy + predictive back.
-- CI artifact renamed to v0.4.3 so old-source builds are obvious.
-- Lint is configured as a required CI step.
+- Original DroidUP launcher payload: unchanged.
+- Trusted shell-owned VirtualDisplay: retained.
+- Direct InputManager injection: retained.
+- **New:** TaskDisplayArea is explicitly switched to `WINDOWING_MODE_FREEFORM` (5).
+- **New:** virtual desktop is locked landscape and app orientation requests are ignored.
+- **New:** session aborts with diagnostics when per-display freeform cannot be enabled.
 
-A successful GitHub run should show both `:app:assembleDebug` and `:app:lintDebug` green and produce `DroidUP-AndroidHost-v0.4.3-trusted-debug`.
+Hardware verification is still required because OEM Android 16 builds may differ in WindowManager shell support.

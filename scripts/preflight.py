@@ -54,6 +54,8 @@ for label, needle in {
     'shell-owned display creation': 'createDesktopDisplay',
     'scrcpy touch flag': 'VD_SUPPORTS_TOUCH',
     'direct input injection': 'injectInputEvent',
+    'per-display freeform mode': 'wm set-display-windowing-mode -d ',
+    'landscape orientation guard': 'wm set-ignore-orientation-request -d ',
 }.items():
     if needle not in service:
         fail(f'missing {label}: {needle}')
@@ -91,6 +93,6 @@ if errors:
 
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
-print('Architecture: shell-owned TRUSTED virtual display + direct InputManager injection')
+print('Architecture: shell-owned TRUSTED virtual display + per-display WINDOWING_MODE_FREEFORM(5)')
 print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
 print('CI: ubuntu-24.04 + Node-24 GitHub actions')

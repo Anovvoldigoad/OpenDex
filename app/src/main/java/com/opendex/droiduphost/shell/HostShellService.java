@@ -173,8 +173,16 @@ public final class HostShellService extends IHostShellService.Stub {
                     throw new IllegalStateException("DisplayManager returned null");
                 }
                 int id = desktopDisplay.getDisplay().getDisplayId();
+
+                // A trusted virtual display alone is NOT a desktop. The default TaskDisplayArea
+                // still comes up fullscreen on modern Android, which is exactly what v0.4.x did.
+                // Android's WindowManager shell exposes the per-display windowing mode directly:
+                // 5 == WINDOWING_MODE_FREEFORM. DroidUP's original ActivityOptions launch bounds
+                // can only behave like desktop windows once the display itself is freeform.
+                String freeform = configureDesktopWindowing(id);
+
                 return "OK|" + id + "|flags=0x" + Integer.toHexString(candidate)
-                        + "|uid=" + Os.getuid();
+                        + "|uid=" + Os.getuid() + "|" + freeform.replace('\n', ' ');
             } catch (Throwable t) {
                 last = t;
                 if (desktopDisplay != null) {
@@ -185,6 +193,33 @@ public final class HostShellService extends IHostShellService.Stub {
         }
         return "ERROR|trusted display creation failed|"
                 + (last == null ? "unknown" : last.getClass().getSimpleName() + ": " + last.getMessage());
+    }
+
+
+    /**
+     * Turn the virtual display into a real freeform TaskDisplayArea and keep it landscape.
+     */
+    private String configureDesktopWindowing(int displayId) {
+        String id = Integer.toString(displayId);
+
+        // Critical step: fullscreen TaskDisplayArea -> freeform TaskDisplayArea.
+        String setMode = exec("wm set-display-windowing-mode -d " + id + " 5");
+        String getMode = exec("wm get-display-windowing-mode -d " + id);
+
+        // Desktop orientation must stay landscape even when a phone app requests portrait.
+        exec("wm set-ignore-orientation-request -d " + id + " true");
+        exec("wm user-rotation -d " + id + " lock 0");
+
+        boolean setOk = setMode.startsWith("EXIT=0");
+        boolean getOk = getMode.startsWith("EXIT=0");
+        String probe = (getOk ? getMode : setMode)
+                .replace("EXIT=0", "")
+                .replace("EXIT=255", "")
+                .replace("EXIT=1", "")
+                .trim();
+        if (probe.length() > 160) probe = probe.substring(0, 160);
+        return "freeform=" + (setOk ? "requested" : "FAILED")
+                + (probe.isEmpty() ? "" : ":" + probe);
     }
 
     private DisplayManager obtainDisplayManager() throws Exception {

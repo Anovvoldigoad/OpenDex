@@ -55,7 +55,7 @@ for label, needle in {
     'shell-owned display creation': 'createDesktopDisplay',
     'scrcpy touch flag': 'VD_SUPPORTS_TOUCH',
     'direct input injection': 'injectInputEvent',
-    'per-display fullscreen mode': 'wm set-display-windowing-mode -d ',
+    'per-display windowing control': 'wm set-display-windowing-mode -d ',
     'landscape orientation guard': 'wm set-ignore-orientation-request -d ',
 }.items():
     if needle not in service:
@@ -68,10 +68,10 @@ if 'android.view.Surface' not in aidl:
 if 'input touchscreen -d' not in bridge:
     fail('slow input fallback missing')
 
-if '--windowingMode 1' not in bridge:
-    fail('DroidUP launcher must be launched fullscreen with --windowingMode 1')
-if 'startOriginalLauncherFullscreen' not in bridge:
-    fail('fullscreen launcher entry point missing')
+if '--windowingMode 0' not in bridge:
+    fail('DroidUP launcher must be launched with --windowingMode 0')
+if 'startOriginalLauncherUndefined' not in bridge:
+    fail('windowing-0 launcher entry point missing')
 if 'DesktopConfig' not in desktop:
     # DesktopActivity receives the selected resolution as extras; MainActivity owns DesktopConfig.
     pass
@@ -94,6 +94,15 @@ if '@Override public boolean dispatchKeyEvent' in desktop or 'super.dispatchKeyE
 if 'surfaceView.setOnKeyListener' not in desktop:
     fail('hardware keyboard forwarding must use the focused SurfaceView OnKeyListener')
 
+
+# v0.5.4 guards
+if "forcePackageTaskWindowingUndefined" not in aidl:
+    fail("missing task windowing-0 AIDL")
+if "setTaskWindowingMode" not in service:
+    fail("missing exact task windowing transaction")
+if "findTaskWindowingMode" not in service:
+    fail("missing task windowing verification")
+
 workflow = (root / '.github/workflows/build-apk.yml').read_text(encoding='utf-8')
 if 'ubuntu-24.04' not in workflow:
     fail('CI runner must be pinned to ubuntu-24.04')
@@ -101,6 +110,13 @@ if 'actions/checkout@v7' not in workflow:
     fail('CI must use Node-24 checkout action')
 if 'actions/upload-artifact@v7' not in workflow:
     fail('CI must use Node-24 upload-artifact action')
+
+if '--windowingMode 1' in bridge:
+    fail('v0.5.4 must not force launcher windowing mode 1')
+if 'set-display-windowing-mode -d " + id + " 1' in service:
+    fail('v0.5.4 must not force display windowing mode 1')
+if 'setTaskWindowingMode' in service and '0 /* UNDEFINED */' not in service:
+    fail('task windowing transaction must request mode 0')
 
 if errors:
     print('PREFLIGHT FAILED')
@@ -110,6 +126,6 @@ if errors:
 
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
-print('Architecture: trusted FULLSCREEN display + per-app freeform launch bounds + native panel resolution')
+print('Architecture: trusted display + WINDOWING_MODE_UNDEFINED(0) + DroidUP launch bounds + native panel resolution')
 print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
 print('CI: ubuntu-24.04 + Node-24 GitHub actions')

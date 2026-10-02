@@ -24,6 +24,8 @@ import androidx.activity.OnBackPressedCallback;
  * The trusted/freeform virtual display is owned by the Shizuku shell UserService.
  */
 public final class DesktopActivity extends ComponentActivity implements SurfaceHolder.Callback {
+    private static final String HOST_PACKAGE = "com.opendex.droiduphost";
+    private static final String DROIDUP_PACKAGE = "com.levelup.droiduplauncher";
     public static final String EXTRA_WIDTH = "desktop_width";
     public static final String EXTRA_HEIGHT = "desktop_height";
     public static final String EXTRA_DPI = "desktop_dpi";
@@ -148,10 +150,18 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
             return;
         }
         sessionStarting = true;
-        status("Mengaktifkan freeform…");
-        bridge.enableDroidUpSettings(result -> {
-            status("Membuat TRUSTED virtual display " + vdWidth + "×" + vdHeight + "…");
-            createDisplayAndLaunch();
+        status("Mengatur host windowing 0…");
+        int hostDisplayId = 0;
+        try {
+            if (getDisplay() != null) hostDisplayId = getDisplay().getDisplayId();
+        } catch (Throwable ignored) {}
+        final int resolvedHostDisplayId = hostDisplayId;
+        bridge.forcePackageTaskWindowingUndefined(HOST_PACKAGE, resolvedHostDisplayId, hostResult -> {
+            status("Mengaktifkan freeform…\nHost: " + hostResult);
+            bridge.enableDroidUpSettings(result -> {
+                status("Membuat TRUSTED virtual display " + vdWidth + "×" + vdHeight + "…");
+                createDisplayAndLaunch();
+            });
         });
     }
 
@@ -180,27 +190,48 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
 
                     if (result.contains("|displayMode=FAILED")) {
                         sessionStarting = false;
-                        status("Display berhasil dibuat, tapi mode FULLSCREEN display gagal.\n\n" + result
-                                + "\n\nROM belum menerima per-display windowing mode 1.");
+                        status("Display berhasil dibuat, tapi mode UNDEFINED (0) display gagal.\n\n" + result
+                                + "\n\nROM belum menerima per-display windowing mode 0.");
                         return;
                     }
 
                     status("Display " + displayId + " · FREEFORM " + vdWidth + "×" + vdHeight
                             + " @ " + vdDpi + "dpi\n"
-                            + "Display tetap FULLSCREEN; aplikasi dengan launch bounds masuk FREEFORM per-task.\n" + result);
+                            + "Display windowing = UNDEFINED (0); policy parent/OEM yang menentukan mode final. App DroidUP tetap memakai launch bounds.\n" + result);
                     bridge.exec("am force-stop --user current com.levelup.droiduplauncher", ignored ->
-                            bridge.startOriginalLauncherFullscreen(displayId, launchResult -> {
+                            bridge.startOriginalLauncherUndefined(displayId, launchResult -> {
                                 if (launchResult.startsWith("EXIT=0")) {
-                                    new Handler(Looper.getMainLooper()).postDelayed(
-                                            () -> statusView.setVisibility(View.GONE), 900);
-                                    surfaceView.requestFocus();
+                                    // ActivityOptions can be ignored by OEM desktop shells. Wait until the
+                                    // actual launcher task exists, then change that exact task to WINDOWING_MODE_UNDEFINED (0)
+                                    // and clear any inherited freeform bounds/caption.
+                                    forceLauncherUndefinedWithRetry(0, launchResult);
                                 } else {
-                                    status("Launcher gagal dibuka fullscreen:\n" + launchResult);
+                                    status("Launcher gagal dibuka dengan windowing 0:\n" + launchResult);
                                 }
                             })
                     );
                 }
         );
+    }
+
+    private void forceLauncherUndefinedWithRetry(int attempt, String launchResult) {
+        if (displayId < 0) return;
+        bridge.forcePackageTaskWindowingUndefined(DROIDUP_PACKAGE, displayId, result -> {
+            if (result.startsWith("OK|")) {
+                status("Desktop windowing 0 OK\n" + result);
+                new Handler(Looper.getMainLooper()).postDelayed(
+                        () -> statusView.setVisibility(View.GONE), 700);
+                surfaceView.requestFocus();
+                return;
+            }
+            if (attempt < 10 && result.contains("task not found")) {
+                new Handler(Looper.getMainLooper()).postDelayed(
+                        () -> forceLauncherUndefinedWithRetry(attempt + 1, launchResult), 120);
+                return;
+            }
+            status("Launcher terbuka, tapi windowing 0 belum bisa diterapkan.\n"
+                    + "Launch: " + launchResult + "\nForce: " + result);
+        });
     }
 
     private boolean onDesktopTouch(View v, MotionEvent e) {

@@ -12,5 +12,6 @@ interface IHostShellService {
     void releaseDesktopDisplay() = 7;
     boolean injectPointer(int displayId, int action, float x, float y, long downTime, long eventTime) = 8;
     boolean injectKey(int displayId, int keyCode) = 9;
+    String forcePackageTaskWindowingUndefined(String packageName, int displayId) = 10;
     void destroy() = 16777114;
 }

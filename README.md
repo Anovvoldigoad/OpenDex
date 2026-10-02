@@ -1,26 +1,20 @@
-# OpenDex DroidUP Host v0.5.2
+# OpenDex DroidUP Host v0.5.4 — WINDOWING 0
 
-This revision fixes the desktop itself being decorated like a floating AOSP window.
+Eksperimen ini mengikuti permintaan untuk tidak memaksa launcher/display ke FULLSCREEN (1) atau FREEFORM (5).
 
-## Important architecture correction
+## Windowing policy
 
-The virtual display now stays **WINDOWING_MODE_FULLSCREEN (1)**. DroidUP is therefore the fullscreen desktop background. The original DroidUP launcher already uses `ActivityOptions.setLaunchBounds()` when it opens apps. With Android freeform support enabled, those bounded app launches are promoted to **FREEFORM per task** instead of turning the whole display into freeform.
+- Virtual display: `wm set-display-windowing-mode -d <id> 0`
+- DroidUP launcher start: `--windowingMode 0`
+- Host + launcher task: `setTaskWindowingMode(taskId, 0, true)`
+- Remembered task bounds dibersihkan.
+- Tidak ada fallback `moveToFullscreen`.
+- Child apps tetap memakai launch bounds dari APK DroidUP asli.
 
-This matches the DroidUP/scrcpy design more closely than v0.5.0/v0.5.1, where the entire TaskDisplayArea was forced to mode 5 and the launcher itself received AOSP window decorations.
+`0` adalah `WINDOWING_MODE_UNDEFINED`, jadi mode final dapat diwarisi dari parent / kebijakan ROM. Ini sengaja untuk menguji apakah decoration desktop hilang tanpa memaksa mode 1.
 
 ## Resolution
+Native-panel auto detection dan preset/custom resolution dari v0.5.2/v0.5.3 tetap dipertahankan.
 
-`Auto Native (panel HP)` reads the physical display mode and rotates it to landscape. It supports tall phone panels automatically, including 20:9 resolutions such as **2800×1260** and **2400×1080**. Manual presets include 20:9, 19.5:9 and 16:9, plus Custom mode.
-
-The SurfaceView preserves aspect ratio rather than stretching the desktop.
-
-## Test
-
-1. Start Shizuku.
-2. Install/repair the bundled DroidUP launcher.
-3. Select `Auto Native (panel HP)`.
-4. Start DroidUP Dex.
-5. Confirm the desktop has **no AOSP title bar**.
-6. Open Chrome from DroidUP. Chrome should open as a bounded/freeform task over the fullscreen desktop.
-
-Artifact name: `DroidUP-AndroidHost-v0.5.2-fullscreen-native-debug`
+## GitHub Actions artifact
+`DroidUP-AndroidHost-v0.5.4-windowing0-debug`

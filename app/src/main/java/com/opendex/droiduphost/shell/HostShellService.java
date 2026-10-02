@@ -1,11 +1,14 @@
 package com.opendex.droiduphost.shell;
 
+import android.app.ActivityManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.hardware.input.InputManager;
 import android.os.SystemClock;
+import android.graphics.Rect;
 import android.system.Os;
 import android.view.InputDevice;
 import android.view.InputEvent;
@@ -24,6 +27,7 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -174,8 +178,8 @@ public final class HostShellService extends IHostShellService.Stub {
                 }
                 int id = desktopDisplay.getDisplay().getDisplayId();
 
-                // Keep the display itself fullscreen. DroidUP's own launcher is the desktop
-                // background; only child app tasks should become freeform via launch bounds.
+                // Keep the display policy inherited/undefined (0). DroidUP remains the desktop background;
+                // child app tasks still use the original DroidUP launch bounds.
                 String displayMode = configureDesktopWindowing(id);
 
                 return "OK|" + id + "|flags=0x" + Integer.toHexString(candidate)
@@ -194,17 +198,15 @@ public final class HostShellService extends IHostShellService.Stub {
 
 
     /**
-     * Keep the TaskDisplayArea FULLSCREEN. DroidUP itself must be the desktop background, not a
-     * freeform task. Individual apps already call ActivityOptions.setLaunchBounds(); on Android
-     * with freeform support enabled those bounds promote only the launched app task to FREEFORM.
-     * This mirrors DroidUP's PC/scrcpy behaviour much more closely than making the whole display
-     * WINDOWING_MODE_FREEFORM (which decorates the launcher itself).
+     * Set the TaskDisplayArea to WINDOWING_MODE_UNDEFINED (0). This intentionally stops forcing
+     * fullscreen/freeform at the display level and lets the parent display policy resolve the final
+     * mode. DroidUP child apps still provide ActivityOptions.setLaunchBounds().
      */
     private String configureDesktopWindowing(int displayId) {
         String id = Integer.toString(displayId);
 
-        // 1 == WINDOWING_MODE_FULLSCREEN. Do NOT set the whole display to 5/freeform.
-        String setMode = exec("wm set-display-windowing-mode -d " + id + " 1");
+        // 0 == WINDOWING_MODE_UNDEFINED. Do not force mode 1 or 5 at the display level.
+        String setMode = exec("wm set-display-windowing-mode -d " + id + " 0");
         String getMode = exec("wm get-display-windowing-mode -d " + id);
 
         // Desktop canvas stays landscape even if a phone-oriented app requests portrait.
@@ -219,8 +221,181 @@ public final class HostShellService extends IHostShellService.Stub {
                 .replace("EXIT=1", "")
                 .trim();
         if (probe.length() > 160) probe = probe.substring(0, 160);
-        return "displayMode=" + (setOk ? "FULLSCREEN" : "FAILED")
+        return "displayMode=" + (setOk ? "UNDEFINED0" : "FAILED")
                 + (probe.isEmpty() ? "" : ":" + probe);
+    }
+
+    /**
+     * Set the concrete task that belongs to {@code packageName} on {@code displayId}
+     * to WINDOWING_MODE_UNDEFINED (0) and clear remembered freeform bounds.
+     *
+     * Launch-time ActivityOptions are only a hint on some OEM/desktop shells. The shell may
+     * still create the task as freeform and attach a caption bar. This method acts after the
+     * task exists, which is the same level Android's desktop controller changes when moving a
+     * desktop task windowing mode.
+     */
+    @Override
+    public synchronized String forcePackageTaskWindowingUndefined(String packageName, int displayId) {
+        if (context == null) return "ERROR|context unavailable";
+        if (packageName == null || packageName.trim().isEmpty()) return "ERROR|empty package";
+
+        int taskId = findTaskId(packageName.trim(), displayId);
+        if (taskId < 0) return "ERROR|task not found|pkg=" + packageName + "|display=" + displayId;
+
+        StringBuilder diag = new StringBuilder();
+        diag.append("task=").append(taskId).append("|display=").append(displayId);
+
+        Throwable firstError = null;
+        boolean modeOk = false;
+        boolean boundsOk = false;
+
+        // Strategy A: ActivityTaskManager manager instance from SystemServiceRegistry.
+        try {
+            Object atm = context.getSystemService("activity_task");
+            if (atm != null) {
+                Method setMode = findMethod(atm.getClass(), "setTaskWindowingMode",
+                        int.class, int.class, boolean.class);
+                if (setMode != null) {
+                    setMode.setAccessible(true);
+                    Object result = setMode.invoke(atm, taskId, 0 /* UNDEFINED */, true);
+                    modeOk = !(result instanceof Boolean) || ((Boolean) result);
+                    diag.append("|managerMode=").append(modeOk);
+                }
+                Method resize = findMethod(atm.getClass(), "resizeTask",
+                        int.class, Rect.class, int.class);
+                if (resize != null) {
+                    resize.setAccessible(true);
+                    Object result = resize.invoke(atm, taskId, null, 0 /* RESIZE_MODE_SYSTEM */);
+                    boundsOk = !(result instanceof Boolean) || ((Boolean) result);
+                    diag.append("|managerBounds=").append(boundsOk);
+                }
+            }
+        } catch (Throwable t) {
+            firstError = unwrap(t);
+            diag.append("|managerErr=").append(shortError(firstError));
+        }
+
+        // Strategy B: hidden ActivityTaskManager binder service. This is tried independently
+        // because OEMs differ in which hidden surface remains callable from the shell UID.
+        if (!modeOk || !boundsOk) {
+            try {
+                Class<?> atmClass = Class.forName("android.app.ActivityTaskManager");
+                Method getService = findMethod(atmClass, "getService");
+                if (getService == null) throw new NoSuchMethodException("ActivityTaskManager.getService");
+                getService.setAccessible(true);
+                Object service = getService.invoke(null);
+                if (service == null) throw new IllegalStateException("activity_task binder unavailable");
+
+                if (!modeOk) {
+                    Method setMode = findMethod(service.getClass(), "setTaskWindowingMode",
+                            int.class, int.class, boolean.class);
+                    if (setMode == null) throw new NoSuchMethodException("setTaskWindowingMode");
+                    setMode.setAccessible(true);
+                    Object result = setMode.invoke(service, taskId, 0 /* UNDEFINED */, true);
+                    modeOk = !(result instanceof Boolean) || ((Boolean) result);
+                    diag.append("|binderMode=").append(modeOk);
+                }
+
+                if (!boundsOk) {
+                    Method resize = findMethod(service.getClass(), "resizeTask",
+                            int.class, Rect.class, int.class);
+                    if (resize != null) {
+                        resize.setAccessible(true);
+                        Object result = resize.invoke(service, taskId, null, 0);
+                        boundsOk = !(result instanceof Boolean) || ((Boolean) result);
+                        diag.append("|binderBounds=").append(boundsOk);
+                    }
+                }
+            } catch (Throwable t) {
+                Throwable e = unwrap(t);
+                if (firstError == null) firstError = e;
+                diag.append("|binderErr=").append(shortError(e));
+            }
+        }
+
+        // Re-probe the task after the transaction. windowingMode is public on RunningTaskInfo.
+        int mode = findTaskWindowingMode(packageName.trim(), displayId);
+        diag.append("|finalMode=").append(mode);
+        // finalMode is the resolved runtime mode; setting 0 may resolve to 1 or another parent mode.
+        if (mode >= 0) diag.append("|requestedMode=0");
+
+        if (modeOk) return "OK|" + diag;
+        return "ERROR|windowing-0 transaction failed|" + diag
+                + (firstError == null ? "" : "|first=" + shortError(firstError));
+    }
+
+    private int findTaskId(String packageName, int displayId) {
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am == null) return -1;
+            List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(200);
+            for (ActivityManager.RunningTaskInfo task : tasks) {
+                if (task == null || task.getDisplayId() != displayId) continue;
+                if (matchesPackage(task.topActivity, packageName)
+                        || matchesPackage(task.baseActivity, packageName)) {
+                    return task.taskId;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    private int findTaskWindowingMode(String packageName, int displayId) {
+        try {
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am == null) return -1;
+            for (ActivityManager.RunningTaskInfo task : am.getRunningTasks(200)) {
+                if (task == null || task.getDisplayId() != displayId) continue;
+                if (matchesPackage(task.topActivity, packageName)
+                        || matchesPackage(task.baseActivity, packageName)) {
+                    try {
+                        Method wm = findMethod(task.getClass(), "getWindowingMode");
+                        if (wm != null) {
+                            wm.setAccessible(true);
+                            Object value = wm.invoke(task);
+                            if (value instanceof Integer) return (Integer) value;
+                        }
+                    } catch (Throwable ignored) {}
+                    return -1;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    private static boolean matchesPackage(ComponentName component, String packageName) {
+        return component != null && packageName.equals(component.getPackageName());
+    }
+
+    private static Method findMethod(Class<?> type, String name, Class<?>... params) {
+        Class<?> c = type;
+        while (c != null) {
+            try { return c.getDeclaredMethod(name, params); }
+            catch (Throwable ignored) {}
+            try { return c.getMethod(name, params); }
+            catch (Throwable ignored) {}
+            for (Class<?> iface : c.getInterfaces()) {
+                try { return iface.getMethod(name, params); }
+                catch (Throwable ignored) {}
+            }
+            c = c.getSuperclass();
+        }
+        return null;
+    }
+
+    private static Throwable unwrap(Throwable t) {
+        Throwable out = t;
+        while (out.getCause() != null && out.getCause() != out) out = out.getCause();
+        return out;
+    }
+
+    private static String shortError(Throwable t) {
+        if (t == null) return "unknown";
+        String msg = t.getMessage();
+        if (msg == null) msg = "";
+        msg = msg.replace('|', '/').replace('\n', ' ');
+        if (msg.length() > 120) msg = msg.substring(0, 120);
+        return t.getClass().getSimpleName() + (msg.isEmpty() ? "" : ":" + msg);
     }
 
     private DisplayManager obtainDisplayManager() throws Exception {

@@ -247,11 +247,25 @@ public final class ShizukuHostBridge {
         exec("input -d " + displayId + " keyevent " + keyCode, null);
     }
 
-    public void startOriginalLauncherFullscreen(int displayId, ResultCallback cb) {
-        // The display itself stays FREEFORM for normal apps, but the desktop launcher is
-        // explicitly launched FULLSCREEN (1) so it behaves like a desktop background.
+    public void startOriginalLauncherUndefined(int displayId, ResultCallback cb) {
+        // v0.5.4: request WINDOWING_MODE_UNDEFINED (0) and let the parent/display policy resolve it.
         exec("am start --user current --display " + displayId
-                + " --windowingMode 1"
+                + " --windowingMode 0"
                 + " -n com.levelup.droiduplauncher/.MainActivity", cb);
+    }
+
+    public void forcePackageTaskWindowingUndefined(String packageName, int displayId, ResultCallback cb) {
+        IHostShellService service = remote;
+        if (service == null) {
+            if (cb != null) main.post(() -> cb.onResult("ERROR|Shizuku shell belum siap"));
+            return;
+        }
+        worker.execute(() -> {
+            String result;
+            try { result = service.forcePackageTaskWindowingUndefined(packageName, displayId); }
+            catch (Throwable t) { result = "ERROR|" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
+            final String out = result;
+            if (cb != null) main.post(() -> cb.onResult(out));
+        });
     }
 }

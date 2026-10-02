@@ -1,4 +1,4 @@
-name: Build DroidUP Android Host
+name: Build DroidUP Android Host Trusted Display v0.4.2
 
 on:
   workflow_dispatch:
@@ -40,16 +40,15 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/DroidUP-AndroidHost-v0.4.0-debug.apk
-          sha256sum out/DroidUP-AndroidHost-v0.4.0-debug.apk | tee out/SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk out/DroidUP-AndroidHost-v0.4.2-trusted-debug.apk
+          sha256sum out/DroidUP-AndroidHost-v0.4.2-trusted-debug.apk | tee out/SHA256SUMS.txt
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: DroidUP-AndroidHost-v0.4.0-debug
+          name: DroidUP-AndroidHost-v0.4.2-trusted-debug
           path: out/*
           if-no-files-found: error
 
-      - name: Lint (advisory)
-        continue-on-error: true
+      - name: Lint (must pass)
         run: gradle --no-daemon :app:lintDebug --stacktrace

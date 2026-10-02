@@ -10,8 +10,8 @@ android {
         applicationId 'com.opendex.droiduphost'
         minSdk 26
         targetSdk 36
-        versionCode 40
-        versionName '0.4.0-droidup'
+        versionCode 42
+        versionName '0.4.2-droidup-trusted-lintclean'
     }
 
     buildFeatures {
@@ -35,4 +35,5 @@ dependencies {
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
     implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'androidx.activity:activity:1.10.1'
 }

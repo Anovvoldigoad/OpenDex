@@ -4,9 +4,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.view.Surface;
 
 import com.opendex.droiduphost.shell.HostShellService;
 
@@ -61,8 +63,8 @@ public final class ShizukuHostBridge {
         app = context.getApplicationContext();
         args = new Shizuku.UserServiceArgs(new ComponentName(app, HostShellService.class))
                 .processNameSuffix("droidup_shell")
-                .tag("opendex_droidup_shell_v1")
-                .version(1)
+                .tag("opendex_droidup_shell_v2")
+                .version(2)
                 .daemon(false)
                 .debuggable(BuildConfig.DEBUG);
     }
@@ -157,6 +159,41 @@ public final class ShizukuHostBridge {
                 + "printf '\\nresizable='; settings get global force_resizable_activities", cb);
     }
 
+    public void createTrustedDesktopDisplay(Surface surface, int width, int height, int dpi, ResultCallback cb) {
+        IHostShellService service = remote;
+        if (service == null) {
+            if (cb != null) main.post(() -> cb.onResult("ERROR|Shizuku shell belum siap"));
+            return;
+        }
+        worker.execute(() -> {
+            String result;
+            try { result = service.createDesktopDisplay(surface, width, height, dpi, Build.VERSION.SDK_INT); }
+            catch (Throwable t) { result = "ERROR|" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
+            final String out = result;
+            if (cb != null) main.post(() -> cb.onResult(out));
+        });
+    }
+
+    public void releaseDesktopDisplay() {
+        IHostShellService service = remote;
+        if (service == null) return;
+        try { service.releaseDesktopDisplay(); } catch (Throwable ignored) {}
+    }
+
+    public boolean injectPointer(int displayId, int action, float x, float y, long downTime, long eventTime) {
+        IHostShellService service = remote;
+        if (service == null) return false;
+        try { return service.injectPointer(displayId, action, x, y, downTime, eventTime); }
+        catch (Throwable t) { return false; }
+    }
+
+    public boolean injectKeyFast(int displayId, int keyCode) {
+        IHostShellService service = remote;
+        if (service == null) return false;
+        try { return service.injectKey(displayId, keyCode); }
+        catch (Throwable t) { return false; }
+    }
+
     public void installBundledLauncher(ProgressCallback progress, ResultCallback cb) {
         IHostShellService service = remote;
         if (service == null) {
@@ -196,16 +233,17 @@ public final class ShizukuHostBridge {
         });
     }
 
-    public void tap(int displayId, int x, int y) {
+    // Slow shell fallbacks are retained only for devices that block direct InputManager injection.
+    public void tapFallback(int displayId, int x, int y) {
         exec("input touchscreen -d " + displayId + " tap " + x + " " + y, null);
     }
 
-    public void swipe(int displayId, int x1, int y1, int x2, int y2, int durationMs) {
+    public void swipeFallback(int displayId, int x1, int y1, int x2, int y2, int durationMs) {
         int dur = Math.max(80, Math.min(durationMs, 2000));
         exec("input touchscreen -d " + displayId + " swipe " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + dur, null);
     }
 
-    public void key(int displayId, int keyCode) {
+    public void keyFallback(int displayId, int keyCode) {
         exec("input -d " + displayId + " keyevent " + keyCode, null);
     }
 

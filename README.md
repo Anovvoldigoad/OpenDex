@@ -1,60 +1,57 @@
-# OpenDex DroidUP Host v0.4.0
+# OpenDex / DroidUP Android Host v0.4.2 — Trusted Display Fix
 
-Eksperimen ini **tidak mengubah UI DroidUP Dex Launcher**. APK launcher asli dari paket `DroidUP-Dex-v1.6-win-x64.zip` dibundel verbatim dan SHA-256-nya diverifikasi saat GitHub Actions build:
+This build keeps the original DroidUP Dex Launcher APK byte-identical. No DroidUP UI, resources, wallpaper, taskbar, Start menu, or launcher DEX are modified.
+
+## Why v0.4.0 could show the desktop but could not open Chrome/apps
+
+v0.4.0 created the VirtualDisplay inside the normal host APK process. On modern Android that display is **untrusted**. Android blocks arbitrary third-party activities from being launched on an untrusted virtual display unless the target activity opts into embedding. DroidUP itself could be launched there by the shell command, but once DroidUP tried to open Chrome as a normal app, Android rejected the launch.
+
+## v0.4.2 architecture
+
+```
+Normal Host Activity
+      |
+      | Surface over AIDL
+      v
+Shizuku UserService (UID shell/root)
+      |
+      +-- creates PUBLIC + TRUSTED virtual display
+      |   using scrcpy-style display flags
+      |
+      +-- direct InputManager injection
+      |   (shell `input` retained only as fallback)
+      |
+      +-- starts original DroidUP launcher on that display
+      v
+Original DroidUP-Dex-Launcher.apk
+      |
+      +-- launches Chrome / apps normally on the trusted display
+```
+
+## Expected first test
+
+1. Start Shizuku and grant the host permission.
+2. Install/repair the bundled DroidUP launcher if necessary.
+3. Tap **START DROIDUP DEX**.
+4. The temporary status overlay should say `Trusted display id=...` and include `uid=2000` when using Shizuku/ADB.
+5. Open Chrome from DroidUP's taskbar and from Start Menu.
+
+If display creation fails, screenshot the full `Trusted virtual display gagal:` message. Do not modify the DroidUP launcher APK.
+
+## CI
+
+GitHub Actions builds with JDK 17, Android SDK 36, AGP 9.3.2 and Gradle 9.5.0. Download artifact `DroidUP-AndroidHost-v0.4.2-trusted-debug`.
+
+## Original launcher integrity
+
+Expected SHA-256:
 
 `d915c440bbf9d28dda5b379ce07519fe06d3904e09a1bf7b4dcfabd963a8f0f2`
 
-Tujuan v0.4.0 cuma memindahkan peran PC/scrcpy ke Android:
 
-1. Host meminta izin Shizuku.
-2. Host menginstall APK launcher DroidUP asli melalui shell Shizuku.
-3. Host menjalankan setting global yang sama dengan aplikasi Windows DroidUP:
-   - `enable_freeform_support=1`
-   - `force_resizable_activities=1`
-   - `force_desktop_mode_on_external_displays=0`
-4. Host membuat public own-content-only VirtualDisplay 1920x1080/240.
-5. Host menjalankan `com.levelup.droiduplauncher/.MainActivity` pada display tersebut.
-6. Surface virtual display ditampilkan fullscreen di HP.
-7. Tap/swipe dari Surface diteruskan ke display virtual dengan `input -d <displayId>` melalui Shizuku.
-
-## Yang sengaja TIDAK diubah
-
-- `DroidUP-Dex-Launcher.apk`
-- wallpaper DroidUP
-- Start menu DroidUP
-- taskbar DroidUP
-- desktop shortcuts DroidUP
-- window controls Normal/Compact/Maximize/Minimize/Close milik DroidUP
-
-Host memiliki layar setup kecil sendiri, tetapi setelah desktop dimulai, konten yang tampil berasal dari launcher DroidUP asli.
-
-## Build cuma pakai HP
-
-Upload isi folder ini ke repo GitHub, lalu buka **Actions → Build DroidUP Android Host → Run workflow**.
-
-Artifact yang harus keluar:
-
-`DroidUP-AndroidHost-v0.4.0-debug`
-
-Di dalam artifact ada `DroidUP-AndroidHost-v0.4.0-debug.apk`.
-
-## Test
-
-1. Install dan start Shizuku.
-2. Install APK host hasil GitHub Actions.
-3. Buka `DroidUP Dex Host`.
-4. Beri izin Shizuku.
-5. Tekan **INSTALL / REPAIR DROIDUP LAUNCHER**.
-6. Pastikan status DroidUP Launcher = installed.
-7. Tekan **START DROIDUP DEX**.
-8. HP berpindah landscape dan host membuat virtual display.
-9. UI DroidUP original seharusnya muncul di surface tersebut.
-10. Test Start menu, buka aplikasi, Normal/Compact/Maximize, Minimize dan Close.
-
-## Batas v0.4.0
-
-Ini adalah proof-of-mechanism. Scrcpy asli membuat virtual display dari proses shell dan mempunyai input injection yang lebih canggih. v0.4.0 terlebih dahulu menguji apakah public VirtualDisplay yang dibuat host diterima firmware target dan apakah DroidUP dapat menjalankan aplikasi di display itu.
-
-Input v0.4.0 meneruskan tap dan swipe setelah gesture selesai; belum ada mouse hover, continuous drag, multi-touch, clipboard, atau IME routing khusus.
-
-Jika layar error muncul, kirim screenshot teks error-nya. Jika UI DroidUP muncul tetapi aplikasi yang dibuka fullscreen/tidak bisa resize, itu berarti virtual display berhasil dan masalah berikutnya khusus freeform/window policy OEM.
+## v0.4.2 lint/back-navigation fix
+- Based on the trusted-display v0.4.1 branch.
+- Replaced deprecated `Activity.onBackPressed()` handling with AndroidX `OnBackPressedDispatcher`.
+- Back button and predictive-back gestures are routed to the DroidUP desktop display while a session is active.
+- CI lint is now required to pass instead of being advisory.
+- Expected artifact: `DroidUP-AndroidHost-v0.4.2-trusted-debug`.

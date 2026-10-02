@@ -1,3 +1,3 @@
-# Keep the Shizuku UserService class/constructors stable if minification is enabled later.
--keep class com.opendex.launcher.shell.UserShellService { *; }
--keep interface com.opendex.launcher.IUserShellService { *; }
+# No release shrinking yet. Keep Shizuku user service and AIDL intact.
+-keep class com.opendex.droiduphost.shell.** { *; }
+-keep interface com.opendex.droiduphost.IHostShellService { *; }

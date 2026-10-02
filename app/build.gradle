@@ -3,20 +3,20 @@ plugins {
 }
 
 android {
-    namespace 'com.opendex.launcher'
+    namespace 'com.opendex.droiduphost'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.opendex.launcher'
+        applicationId 'com.opendex.droiduphost'
         minSdk 26
         targetSdk 36
-        versionCode 35
-        versionName '0.3.5-alpha'
+        versionCode 40
+        versionName '0.4.0-droidup'
     }
 
     buildFeatures {
-        aidl true
         buildConfig true
+        aidl true
     }
 
     compileOptions {
@@ -24,26 +24,15 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    buildTypes {
-        debug {
-            applicationIdSuffix '.debug'
-            versionNameSuffix '-debug'
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
         }
-        release {
-            minifyEnabled false
-            shrinkResources false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-        }
-    }
-
-    lint {
-        abortOnError true
-        checkReleaseBuilds false
-        disable 'QueryAllPackagesPermission'
     }
 }
 
 dependencies {
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
+    implementation 'androidx.annotation:annotation:1.9.1'
 }

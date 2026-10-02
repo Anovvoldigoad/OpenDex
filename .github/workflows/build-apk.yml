@@ -1,39 +1,31 @@
-name: Build OpenDex APK
+name: Build DroidUP Android Host
 
 on:
   workflow_dispatch:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-
-permissions:
-  contents: read
 
 jobs:
-  build:
-    name: Android CI
+  android:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK 36
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
-      # OpenDex intentionally does not commit a gradle-wrapper.jar.
-      # setup-gradle downloads a verified Gradle 9.5.0 distribution and exposes
-      # the `gradle` executable on PATH.
       - name: Set up Gradle 9.5
         uses: gradle/actions/setup-gradle@v6
         with:
@@ -42,29 +34,22 @@ jobs:
       - name: Source preflight
         run: python3 scripts/preflight.py
 
-      - name: Show toolchain
-        run: |
-          java -version
-          gradle --version
-          sdkmanager --list_installed
-
-      - name: Build installable debug APK
+      - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Prepare artifact
+      - name: Prepare APK artifact
         run: |
-          mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/OpenDex-v0.3.5-debug.apk
-          sha256sum dist/OpenDex-v0.3.5-debug.apk > dist/OpenDex-v0.3.5-debug.apk.sha256
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk out/DroidUP-AndroidHost-v0.4.0-debug.apk
+          sha256sum out/DroidUP-AndroidHost-v0.4.0-debug.apk | tee out/SHA256SUMS.txt
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v5
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
         with:
-          name: OpenDex-v0.3.5-debug
-          path: dist/*
+          name: DroidUP-AndroidHost-v0.4.0-debug
+          path: out/*
           if-no-files-found: error
-          retention-days: 30
 
-      - name: Android lint (advisory)
+      - name: Lint (advisory)
         continue-on-error: true
         run: gradle --no-daemon :app:lintDebug --stacktrace

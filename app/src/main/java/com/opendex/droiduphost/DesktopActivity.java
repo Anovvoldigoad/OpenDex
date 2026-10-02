@@ -178,16 +178,16 @@ public final class DesktopActivity extends ComponentActivity implements SurfaceH
                         return;
                     }
 
-                    if (result.contains("|freeform=FAILED")) {
+                    if (result.contains("|displayMode=FAILED")) {
                         sessionStarting = false;
-                        status("Display berhasil dibuat, tapi FREEFORM display gagal.\n\n" + result
-                                + "\n\nROM belum menerima per-display windowing mode 5.");
+                        status("Display berhasil dibuat, tapi mode FULLSCREEN display gagal.\n\n" + result
+                                + "\n\nROM belum menerima per-display windowing mode 1.");
                         return;
                     }
 
                     status("Display " + displayId + " · FREEFORM " + vdWidth + "×" + vdHeight
                             + " @ " + vdDpi + "dpi\n"
-                            + "Launcher dipaksa FULLSCREEN, aplikasi tetap freeform.\n" + result);
+                            + "Display tetap FULLSCREEN; aplikasi dengan launch bounds masuk FREEFORM per-task.\n" + result);
                     bridge.exec("am force-stop --user current com.levelup.droiduplauncher", ignored ->
                             bridge.startOriginalLauncherFullscreen(displayId, launchResult -> {
                                 if (launchResult.startsWith("EXIT=0")) {

@@ -15,8 +15,11 @@ public final class DesktopConfig {
     public static final String KEY_CUSTOM_H = "custom_height";
     public static final String KEY_CUSTOM_DPI = "custom_dpi";
 
-    public static final String MODE_AUTO = "Auto (layar HP)";
-    public static final String MODE_1080 = "1920 × 1080";
+    public static final String MODE_AUTO = "Auto Native (panel HP)";
+    public static final String MODE_2800_1260 = "2800 × 1260 (20:9)";
+    public static final String MODE_2400_1080 = "2400 × 1080 (20:9)";
+    public static final String MODE_2340_1080 = "2340 × 1080 (19.5:9)";
+    public static final String MODE_1080 = "1920 × 1080 (16:9)";
     public static final String MODE_900 = "1600 × 900";
     public static final String MODE_768 = "1366 × 768";
     public static final String MODE_720 = "1280 × 720";
@@ -35,7 +38,7 @@ public final class DesktopConfig {
     }
 
     public static String[] modes() {
-        return new String[] { MODE_AUTO, MODE_1080, MODE_900, MODE_768, MODE_720, MODE_CUSTOM };
+        return new String[] { MODE_AUTO, MODE_2800_1260, MODE_2400_1080, MODE_2340_1080, MODE_1080, MODE_900, MODE_768, MODE_720, MODE_CUSTOM };
     }
 
     public static int[] detectCurrentPixels(Activity activity) {
@@ -58,9 +61,20 @@ public final class DesktopConfig {
         int w = current[0], h = current[1];
         try {
             WindowManager wm = (WindowManager) activity.getSystemService(Context.WINDOW_SERVICE);
-            Display.Mode mode = wm.getDefaultDisplay().getMode();
-            int mw = mode.getPhysicalWidth();
-            int mh = mode.getPhysicalHeight();
+            Display display = wm.getDefaultDisplay();
+            Display.Mode best = display.getMode();
+            long bestPixels = (long) best.getPhysicalWidth() * best.getPhysicalHeight();
+            // Some phones expose FHD+/QHD+ as separate display modes. Pick the largest physical
+            // mode so Auto Native can use the real panel resolution (for example 2800x1260).
+            for (Display.Mode candidate : display.getSupportedModes()) {
+                long pixels = (long) candidate.getPhysicalWidth() * candidate.getPhysicalHeight();
+                if (pixels > bestPixels) {
+                    best = candidate;
+                    bestPixels = pixels;
+                }
+            }
+            int mw = best.getPhysicalWidth();
+            int mh = best.getPhysicalHeight();
             if (mw > 0 && mh > 0) {
                 w = Math.max(mw, mh);
                 h = Math.min(mw, mh);
@@ -77,6 +91,9 @@ public final class DesktopConfig {
     }
 
     public static DesktopConfig fromSelection(Activity activity, String mode, int customW, int customH, int customDpi) {
+        if (MODE_2800_1260.equals(mode)) return new DesktopConfig(2800, 1260, recommendedDpi(1260), mode);
+        if (MODE_2400_1080.equals(mode)) return new DesktopConfig(2400, 1080, recommendedDpi(1080), mode);
+        if (MODE_2340_1080.equals(mode)) return new DesktopConfig(2340, 1080, recommendedDpi(1080), mode);
         if (MODE_1080.equals(mode)) return new DesktopConfig(1920, 1080, recommendedDpi(1080), mode);
         if (MODE_900.equals(mode)) return new DesktopConfig(1600, 900, recommendedDpi(900), mode);
         if (MODE_768.equals(mode)) return new DesktopConfig(1366, 768, recommendedDpi(768), mode);
@@ -88,8 +105,12 @@ public final class DesktopConfig {
             int dpi = customDpi > 0 ? customDpi : recommendedDpi(h);
             return new DesktopConfig(w, h, dpi, mode);
         }
-        int[] detected = detectCurrentPixels(activity);
-        return new DesktopConfig(detected[0], detected[1], recommendedDpi(detected[1]), MODE_AUTO);
+        // Prefer the physical panel mode so Auto does not silently downscale a 1440p/1260p phone
+        // just because Android is rendering the UI at a lower logical resolution.
+        int[] detected = detectPhysicalMode(activity);
+        int w = clamp(detected[0], 800, 4096);
+        int h = clamp(detected[1], 480, 2160);
+        return new DesktopConfig(w, h, recommendedDpi(h), MODE_AUTO);
     }
 
     public static void save(Activity activity, DesktopConfig cfg) {

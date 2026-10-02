@@ -174,15 +174,12 @@ public final class HostShellService extends IHostShellService.Stub {
                 }
                 int id = desktopDisplay.getDisplay().getDisplayId();
 
-                // A trusted virtual display alone is NOT a desktop. The default TaskDisplayArea
-                // still comes up fullscreen on modern Android, which is exactly what v0.4.x did.
-                // Android's WindowManager shell exposes the per-display windowing mode directly:
-                // 5 == WINDOWING_MODE_FREEFORM. DroidUP's original ActivityOptions launch bounds
-                // can only behave like desktop windows once the display itself is freeform.
-                String freeform = configureDesktopWindowing(id);
+                // Keep the display itself fullscreen. DroidUP's own launcher is the desktop
+                // background; only child app tasks should become freeform via launch bounds.
+                String displayMode = configureDesktopWindowing(id);
 
                 return "OK|" + id + "|flags=0x" + Integer.toHexString(candidate)
-                        + "|uid=" + Os.getuid() + "|" + freeform.replace('\n', ' ');
+                        + "|uid=" + Os.getuid() + "|" + displayMode.replace('\n', ' ');
             } catch (Throwable t) {
                 last = t;
                 if (desktopDisplay != null) {
@@ -197,16 +194,20 @@ public final class HostShellService extends IHostShellService.Stub {
 
 
     /**
-     * Turn the virtual display into a real freeform TaskDisplayArea and keep it landscape.
+     * Keep the TaskDisplayArea FULLSCREEN. DroidUP itself must be the desktop background, not a
+     * freeform task. Individual apps already call ActivityOptions.setLaunchBounds(); on Android
+     * with freeform support enabled those bounds promote only the launched app task to FREEFORM.
+     * This mirrors DroidUP's PC/scrcpy behaviour much more closely than making the whole display
+     * WINDOWING_MODE_FREEFORM (which decorates the launcher itself).
      */
     private String configureDesktopWindowing(int displayId) {
         String id = Integer.toString(displayId);
 
-        // Critical step: fullscreen TaskDisplayArea -> freeform TaskDisplayArea.
-        String setMode = exec("wm set-display-windowing-mode -d " + id + " 5");
+        // 1 == WINDOWING_MODE_FULLSCREEN. Do NOT set the whole display to 5/freeform.
+        String setMode = exec("wm set-display-windowing-mode -d " + id + " 1");
         String getMode = exec("wm get-display-windowing-mode -d " + id);
 
-        // Desktop orientation must stay landscape even when a phone app requests portrait.
+        // Desktop canvas stays landscape even if a phone-oriented app requests portrait.
         exec("wm set-ignore-orientation-request -d " + id + " true");
         exec("wm user-rotation -d " + id + " lock 0");
 
@@ -218,7 +219,7 @@ public final class HostShellService extends IHostShellService.Stub {
                 .replace("EXIT=1", "")
                 .trim();
         if (probe.length() > 160) probe = probe.substring(0, 160);
-        return "freeform=" + (setOk ? "requested" : "FAILED")
+        return "displayMode=" + (setOk ? "FULLSCREEN" : "FAILED")
                 + (probe.isEmpty() ? "" : ":" + probe);
     }
 

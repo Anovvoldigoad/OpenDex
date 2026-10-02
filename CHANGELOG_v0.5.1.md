@@ -1,4 +1,4 @@
-# v0.5.1
+# v0.5.2
 
 - Fix: DroidUP desktop launcher is forced to fullscreen (`WINDOWING_MODE_FULLSCREEN=1`).
 - Keep: virtual desktop TaskDisplayArea remains freeform (`WINDOWING_MODE_FREEFORM=5`) for launched apps.

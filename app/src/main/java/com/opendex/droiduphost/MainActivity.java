@@ -102,7 +102,7 @@ public final class MainActivity extends Activity {
         crLp.topMargin = dp(8);
         root.addView(customRow, crLp);
 
-        TextView customHelp = text("Custom dipakai kalau mode = Custom. Auto membaca resolusi layar HP saat ini; DPI otomatis menjaga skala desktop tetap nyaman.", 11, Color.rgb(145,145,155));
+        TextView customHelp = text("Custom dipakai kalau mode = Custom. Auto Native membaca mode panel fisik HP (termasuk 20:9 seperti 2800×1260) dan tetap memutar desktop ke landscape; DPI otomatis menjaga skala desktop nyaman.", 11, Color.rgb(145,145,155));
         LinearLayout.LayoutParams chLp = fullWrap();
         chLp.topMargin = dp(4);
         root.addView(customHelp, chLp);
@@ -151,7 +151,7 @@ public final class MainActivity extends Activity {
                 parseInt(dpiInput, DesktopConfig.savedDpi(this)));
         int[] current = DesktopConfig.detectCurrentPixels(this);
         int[] physical = DesktopConfig.detectPhysicalMode(this);
-        resolutionInfo.setText("Auto detect: " + current[0] + "×" + current[1]
+        resolutionInfo.setText("Render saat ini: " + current[0] + "×" + current[1]
                 + " · panel mode: " + physical[0] + "×" + physical[1]
                 + "\nSelected: " + cfg.width + "×" + cfg.height + " @ " + cfg.dpi + " dpi");
     }

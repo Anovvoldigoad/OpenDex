@@ -1,41 +1,26 @@
-# OpenDex DroidUP Host v0.5.1
+# OpenDex DroidUP Host v0.5.2
 
-This build keeps the bundled original DroidUP launcher APK byte-identical and fixes two problems seen on-device:
+This revision fixes the desktop itself being decorated like a floating AOSP window.
 
-1. The DroidUP launcher/desktop is explicitly launched in **FULLSCREEN windowing mode (1)** while the virtual display itself remains **FREEFORM (5)**. Normal apps therefore stay freeform above the desktop instead of the launcher itself becoming a floating window.
-2. The virtual desktop resolution is no longer hardcoded to 1920x1080. The host supports automatic phone-screen detection, common presets, and custom width/height/DPI.
+## Important architecture correction
 
-## Resolution modes
+The virtual display now stays **WINDOWING_MODE_FULLSCREEN (1)**. DroidUP is therefore the fullscreen desktop background. The original DroidUP launcher already uses `ActivityOptions.setLaunchBounds()` when it opens apps. With Android freeform support enabled, those bounded app launches are promoted to **FREEFORM per task** instead of turning the whole display into freeform.
 
-- Auto (phone screen/current rendering resolution)
-- 1920x1080
-- 1600x900
-- 1366x768
-- 1280x720
-- Custom width / height / DPI
+This matches the DroidUP/scrcpy design more closely than v0.5.0/v0.5.1, where the entire TaskDisplayArea was forced to mode 5 and the launcher itself received AOSP window decorations.
 
-Auto DPI keeps roughly the same UI scale as 1080p at 240 dpi. Manual resolutions preserve aspect ratio in the host view (letterboxing instead of stretching).
+## Resolution
 
-## Architecture
+`Auto Native (panel HP)` reads the physical display mode and rotates it to landscape. It supports tall phone panels automatically, including 20:9 resolutions such as **2800×1260** and **2400×1080**. Manual presets include 20:9, 19.5:9 and 16:9, plus Custom mode.
 
-- Original DroidUP launcher UI: unchanged
-- Shizuku UserService creates a trusted virtual display
-- Display TaskDisplayArea is set to `WINDOWING_MODE_FREEFORM (5)`
-- DroidUP launcher is started with `am start --display <id> --windowingMode 1 ...`
-- Apps opened by DroidUP inherit/use freeform behavior on that display
-- Input uses direct InputManager injection with shell-command fallback
+The SurfaceView preserves aspect ratio rather than stretching the desktop.
 
-## About the AOSP freeform title bar
+## Test
 
-The native title bar/border shown around third-party apps is drawn by Android's WindowManager Shell/SystemUI, not by the DroidUP launcher. A normal APK+Shizuku host cannot simply reskin those decorations. Replacing them requires either:
+1. Start Shizuku.
+2. Install/repair the bundled DroidUP launcher.
+3. Select `Auto Native (panel HP)`.
+4. Start DroidUP Dex.
+5. Confirm the desktop has **no AOSP title bar**.
+6. Open Chrome from DroidUP. Chrome should open as a bounded/freeform task over the fullscreen desktop.
 
-- a SystemUI/framework/ROM patch, or
-- a custom task-organizer/window-shell implementation that owns task surfaces and draws its own decorations.
-
-v0.5.1 deliberately does not fake custom borders on top of native windows; first priority is correct desktop/task behavior.
-
-## GitHub Actions
-
-Run **Build DroidUP Android Host v0.5.1 Fullscreen + Resolution**. Artifact:
-
-`DroidUP-AndroidHost-v0.5.1-fullscreen-resolution-debug`
+Artifact name: `DroidUP-AndroidHost-v0.5.2-fullscreen-native-debug`

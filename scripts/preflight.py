@@ -55,7 +55,7 @@ for label, needle in {
     'shell-owned display creation': 'createDesktopDisplay',
     'scrcpy touch flag': 'VD_SUPPORTS_TOUCH',
     'direct input injection': 'injectInputEvent',
-    'per-display freeform mode': 'wm set-display-windowing-mode -d ',
+    'per-display fullscreen mode': 'wm set-display-windowing-mode -d ',
     'landscape orientation guard': 'wm set-ignore-orientation-request -d ',
 }.items():
     if needle not in service:
@@ -77,8 +77,8 @@ if 'DesktopConfig' not in desktop:
     pass
 main_path = root / 'app/src/main/java/com/opendex/droiduphost/MainActivity.java'
 main = main_path.read_text(encoding='utf-8') if main_path.exists() else ''
-if 'DesktopConfig.detectCurrentPixels' not in main:
-    fail('automatic phone resolution detection missing')
+if 'DesktopConfig.detectPhysicalMode' not in main:
+    fail('automatic native panel resolution detection missing')
 if 'MODE_CUSTOM' not in (root / 'app/src/main/java/com/opendex/droiduphost/DesktopConfig.java').read_text(encoding='utf-8'):
     fail('custom resolution mode missing')
 if 'VD_WIDTH' in desktop or 'VD_HEIGHT' in desktop:
@@ -110,6 +110,6 @@ if errors:
 
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
-print('Architecture: trusted freeform display + fullscreen DroidUP launcher + dynamic resolution')
+print('Architecture: trusted FULLSCREEN display + per-app freeform launch bounds + native panel resolution')
 print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
 print('CI: ubuntu-24.04 + Node-24 GitHub actions')

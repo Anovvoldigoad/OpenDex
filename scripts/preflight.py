@@ -95,13 +95,20 @@ if 'surfaceView.setOnKeyListener' not in desktop:
     fail('hardware keyboard forwarding must use the focused SurfaceView OnKeyListener')
 
 
-# v0.5.4 guards
+# v0.5.5 guards
 if "forcePackageTaskWindowingUndefined" not in aidl:
     fail("missing task windowing-0 AIDL")
 if "setTaskWindowingMode" not in service:
     fail("missing exact task windowing transaction")
 if "findTaskWindowingMode" not in service:
     fail("missing task windowing verification")
+
+
+# Public Android SDK stubs do not expose hidden TaskInfo#getDisplayId().
+if 'task.getDisplayId()' in service:
+    fail('direct hidden RunningTaskInfo.getDisplayId() call will not compile against public SDK; use reflection helper')
+if 'getTaskDisplayId(task)' not in service:
+    fail('runtime reflective task display-id helper missing')
 
 workflow = (root / '.github/workflows/build-apk.yml').read_text(encoding='utf-8')
 if 'ubuntu-24.04' not in workflow:
@@ -112,9 +119,9 @@ if 'actions/upload-artifact@v7' not in workflow:
     fail('CI must use Node-24 upload-artifact action')
 
 if '--windowingMode 1' in bridge:
-    fail('v0.5.4 must not force launcher windowing mode 1')
+    fail('v0.5.5 must not force launcher windowing mode 1')
 if 'set-display-windowing-mode -d " + id + " 1' in service:
-    fail('v0.5.4 must not force display windowing mode 1')
+    fail('v0.5.5 must not force display windowing mode 1')
 if 'setTaskWindowingMode' in service and '0 /* UNDEFINED */' not in service:
     fail('task windowing transaction must request mode 0')
 

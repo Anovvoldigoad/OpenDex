@@ -1,4 +1,4 @@
-name: Build DroidUP Android Host v0.5.4 Windowing 0
+name: Build DroidUP Android Host v0.5.5 Windowing 0 Compile Fix
 
 on:
   workflow_dispatch:
@@ -40,13 +40,13 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/DroidUP-AndroidHost-v0.5.4-windowing0-debug.apk
-          sha256sum out/DroidUP-AndroidHost-v0.5.4-windowing0-debug.apk | tee out/SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk out/DroidUP-AndroidHost-v0.5.5-windowing0-debug.apk
+          sha256sum out/DroidUP-AndroidHost-v0.5.5-windowing0-debug.apk | tee out/SHA256SUMS.txt
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: DroidUP-AndroidHost-v0.5.4-windowing0-debug
+          name: DroidUP-AndroidHost-v0.5.5-windowing0-debug
           path: out/*
           if-no-files-found: error
 

@@ -330,7 +330,7 @@ public final class HostShellService extends IHostShellService.Stub {
             if (am == null) return -1;
             List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(200);
             for (ActivityManager.RunningTaskInfo task : tasks) {
-                if (task == null || task.getDisplayId() != displayId) continue;
+                if (task == null || getTaskDisplayId(task) != displayId) continue;
                 if (matchesPackage(task.topActivity, packageName)
                         || matchesPackage(task.baseActivity, packageName)) {
                     return task.taskId;
@@ -345,7 +345,7 @@ public final class HostShellService extends IHostShellService.Stub {
             ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
             if (am == null) return -1;
             for (ActivityManager.RunningTaskInfo task : am.getRunningTasks(200)) {
-                if (task == null || task.getDisplayId() != displayId) continue;
+                if (task == null || getTaskDisplayId(task) != displayId) continue;
                 if (matchesPackage(task.topActivity, packageName)
                         || matchesPackage(task.baseActivity, packageName)) {
                     try {
@@ -357,6 +357,37 @@ public final class HostShellService extends IHostShellService.Stub {
                         }
                     } catch (Throwable ignored) {}
                     return -1;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return -1;
+    }
+
+    /**
+     * TaskInfo#getDisplayId() and TaskInfo#displayId are hidden framework API members,
+     * so they are not present in the public Android SDK stubs used by GitHub Actions.
+     * Resolve them reflectively inside the Shizuku shell process instead of referencing
+     * the hidden API at compile time.
+     */
+    private static int getTaskDisplayId(ActivityManager.RunningTaskInfo task) {
+        if (task == null) return -1;
+        try {
+            Method getter = findMethod(task.getClass(), "getDisplayId");
+            if (getter != null) {
+                getter.setAccessible(true);
+                Object value = getter.invoke(task);
+                if (value instanceof Integer) return (Integer) value;
+            }
+        } catch (Throwable ignored) {}
+        try {
+            Class<?> c = task.getClass();
+            while (c != null) {
+                try {
+                    java.lang.reflect.Field f = c.getDeclaredField("displayId");
+                    f.setAccessible(true);
+                    return f.getInt(task);
+                } catch (NoSuchFieldException e) {
+                    c = c.getSuperclass();
                 }
             }
         } catch (Throwable ignored) {}

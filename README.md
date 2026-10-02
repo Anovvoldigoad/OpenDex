@@ -1,4 +1,4 @@
-# OpenDex DroidUP Host v0.5.4 — WINDOWING 0
+# OpenDex DroidUP Host v0.5.5 — WINDOWING 0 + COMPILE FIX
 
 Eksperimen ini mengikuti permintaan untuk tidak memaksa launcher/display ke FULLSCREEN (1) atau FREEFORM (5).
 
@@ -17,4 +17,8 @@ Eksperimen ini mengikuti permintaan untuk tidak memaksa launcher/display ke FULL
 Native-panel auto detection dan preset/custom resolution dari v0.5.2/v0.5.3 tetap dipertahankan.
 
 ## GitHub Actions artifact
-`DroidUP-AndroidHost-v0.5.4-windowing0-debug`
+`DroidUP-AndroidHost-v0.5.5-windowing0-debug`
+
+
+## v0.5.5 compile fix
+GitHub Actions public SDK stubs do not expose hidden `TaskInfo.getDisplayId()`. Task display lookup now uses runtime reflection (`getDisplayId` then `displayId` field fallback) inside the Shizuku shell service. Windowing mode remains 0.

@@ -1,7 +1,12 @@
-# OpenDex Mi Engine v0.6.0
+# OpenDex Mi Engine v0.6.1
 
 This version intentionally drops the DroidUP launcher and stops using Android/OEM native
 freeform windows as the desktop engine.
+
+## v0.6.1 nested-window fix
+
+Each application now runs fullscreen inside a **private trusted virtual display**. The display is not PUBLIC/PRESENTATION and is explicitly kept in windowing mode 1. This prevents Android 16 desktop policy from adding a second AOSP freeform titlebar inside the OpenDex custom window. OpenDex itself supplies the desktop frame.
+
 
 ## What changed
 
@@ -67,9 +72,9 @@ No root is required by this OpenDex implementation.
 
 1. Extract this ZIP.
 2. Upload/push the project contents to a GitHub repository.
-3. Open **Actions -> Build OpenDex Mi Engine v0.6.0 -> Run workflow**.
-4. Download artifact **OpenDex-MiEngine-v0.6.0-debug**.
-5. Extract the artifact ZIP and install `OpenDex-MiEngine-v0.6.0-debug.apk`.
+3. Open **Actions -> Build OpenDex Mi Engine v0.6.1 -> Run workflow**.
+4. Download artifact **OpenDex-MiEngine-v0.6.1-debug**.
+5. Extract the artifact ZIP and install `OpenDex-MiEngine-v0.6.1-debug.apk`.
 
 The CI intentionally builds and uploads the APK before running advisory lint so a non-runtime lint
 finding cannot hide the installable artifact during early engine testing.

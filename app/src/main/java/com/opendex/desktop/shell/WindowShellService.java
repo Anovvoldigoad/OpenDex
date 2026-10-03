@@ -33,8 +33,6 @@ import java.util.concurrent.TimeUnit;
  * desktop window frame around the SurfaceView. This avoids OEM/AOSP freeform decorations.
  */
 public final class WindowShellService extends IWindowShellService.Stub {
-    private static final int VD_PUBLIC = 1 << 0;
-    private static final int VD_PRESENTATION = 1 << 1;
     private static final int VD_OWN_CONTENT_ONLY = 1 << 3;
     private static final int VD_SUPPORTS_TOUCH = 1 << 6;
     private static final int VD_DESTROY_CONTENT_ON_REMOVAL = 1 << 8;
@@ -43,7 +41,6 @@ public final class WindowShellService extends IWindowShellService.Stub {
     private static final int VD_ALWAYS_UNLOCKED = 1 << 12;
     private static final int VD_TOUCH_FEEDBACK_DISABLED = 1 << 13;
     private static final int VD_OWN_FOCUS = 1 << 14;
-    private static final int VD_DEVICE_DISPLAY_GROUP = 1 << 15;
 
     private final Context context;
     private final Map<Integer, VirtualDisplay> displays = new HashMap<>();
@@ -85,21 +82,23 @@ public final class WindowShellService extends IWindowShellService.Stub {
         height = clamp(height, 240, 2800);
         dpi = clamp(dpi, 120, 640);
 
-        final int base = VD_PUBLIC | VD_PRESENTATION | VD_OWN_CONTENT_ONLY
-                | VD_SUPPORTS_TOUCH | VD_DESTROY_CONTENT_ON_REMOVAL;
+        // Mi-Freeform does NOT expose each app surface as a public/presentation display.
+        // Keeping these per-app displays private prevents Android 16 desktop-mode policy from
+        // wrapping the app in another native freeform window inside our custom desktop window.
+        final int base = VD_OWN_CONTENT_ONLY | VD_SUPPORTS_TOUCH | VD_DESTROY_CONTENT_ON_REMOVAL;
         int flags = base;
         if (sdkInt >= 33) {
             flags |= VD_TRUSTED | VD_OWN_DISPLAY_GROUP | VD_ALWAYS_UNLOCKED | VD_TOUCH_FEEDBACK_DISABLED;
-            if (sdkInt >= 34) flags |= VD_OWN_FOCUS | VD_DEVICE_DISPLAY_GROUP;
+            if (sdkInt >= 34) flags |= VD_OWN_FOCUS;
         }
 
         int[] attempts;
         if (sdkInt >= 34) {
             attempts = new int[]{
                     flags,
-                    flags & ~VD_DEVICE_DISPLAY_GROUP,
-                    flags & ~(VD_DEVICE_DISPLAY_GROUP | VD_OWN_FOCUS),
-                    base | VD_TRUSTED | VD_ALWAYS_UNLOCKED,
+                    flags & ~VD_OWN_FOCUS,
+                    base | VD_TRUSTED | VD_OWN_DISPLAY_GROUP | VD_ALWAYS_UNLOCKED,
+                    base | VD_TRUSTED | VD_OWN_DISPLAY_GROUP,
                     base | VD_TRUSTED
             };
         } else if (sdkInt >= 33) {
@@ -118,11 +117,13 @@ public final class WindowShellService extends IWindowShellService.Stub {
                 int displayId = vd.getDisplay().getDisplayId();
                 displays.put(displayId, vd);
 
-                // Keep each app display stable. The app itself is fullscreen inside this display;
-                // the host window controls geometry, so native freeform is intentionally unused.
+                // Private app displays must stay FULLSCREEN internally. The host's TextureView is
+                // the only desktop window. This explicitly prevents nested AOSP freeform captions.
+                String wmMode = runShellQuick("wm set-display-windowing-mode -d " + displayId + " 1");
                 runShellQuick("wm set-ignore-orientation-request -d " + displayId + " true");
                 return "OK|" + displayId + "|" + width + "x" + height + "@" + dpi
-                        + "|flags=0x" + Integer.toHexString(candidate) + "|uid=" + Os.getuid();
+                        + "|flags=0x" + Integer.toHexString(candidate) + "|uid=" + Os.getuid()
+                        + "|private=1|wm=" + compact(wmMode);
             } catch (Throwable t) {
                 last = t;
             }
@@ -150,11 +151,14 @@ public final class WindowShellService extends IWindowShellService.Stub {
         if (!displays.containsKey(displayId)) return "EXIT=2\ndisplay not found: " + displayId;
         if (!safeToken(packageName) || !safeComponent(componentName)) return "EXIT=2\ninvalid component";
 
-        // Avoid native freeform completely: app is fullscreen *inside its own virtual display*.
-        // NEW_TASK + CLEAR_TASK prevents an old phone task from swallowing the launch on many OEMs.
-        String cmd = "settings put global force_resizable_activities 1; "
+        // Do not enable Android's global freeform support here. Older OpenDex experiments did
+        // that and Android 16 then created a second native-captioned window *inside* this surface.
+        // A private per-app display + explicit FULLSCREEN mode is the Mi-Freeform-style model.
+        // MULTIPLE_TASK keeps this desktop instance separate from a task already open on the phone.
+        String cmd = "wm set-display-windowing-mode -d " + displayId + " 1 >/dev/null 2>&1; "
                 + "am start --user current --display " + displayId
-                + " --windowingMode 1 -f 0x10008000 -n " + componentName;
+                + " --windowingMode 1 -f 0x18008000 -n " + componentName
+                + "; sleep 0.15; wm set-display-windowing-mode -d " + displayId + " 1 >/dev/null 2>&1";
         return exec(cmd);
     }
 
@@ -256,6 +260,11 @@ public final class WindowShellService extends IWindowShellService.Stub {
     }
 
     private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
+    private static String compact(String value) {
+        if (value == null) return "";
+        value = value.replace('\n', ' ').replace('|', '/').trim();
+        return value.length() > 96 ? value.substring(0, 96) : value;
+    }
     private static String safeName(String value) {
         if (value == null) return "App";
         return value.replaceAll("[^A-Za-z0-9._ -]", "_");

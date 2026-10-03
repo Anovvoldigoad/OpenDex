@@ -1,4 +1,4 @@
-name: Build OpenDex Mi Engine v0.6.0
+name: Build OpenDex Mi Engine v0.6.1
 
 on:
   workflow_dispatch:
@@ -40,13 +40,13 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-MiEngine-v0.6.0-debug.apk
-          sha256sum out/OpenDex-MiEngine-v0.6.0-debug.apk | tee out/SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-MiEngine-v0.6.1-private-display-debug.apk
+          sha256sum out/OpenDex-MiEngine-v0.6.1-private-display-debug.apk | tee out/SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: OpenDex-MiEngine-v0.6.0-debug
+          name: OpenDex-MiEngine-v0.6.1-private-display-debug
           path: out/*
           if-no-files-found: error
 

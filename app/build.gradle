@@ -10,8 +10,8 @@ android {
         applicationId 'com.opendex.desktop'
         minSdk 26
         targetSdk 36
-        versionCode 60
-        versionName '0.6.0-mi-engine'
+        versionCode 61
+        versionName '0.6.1-private-display'
     }
 
     buildFeatures {

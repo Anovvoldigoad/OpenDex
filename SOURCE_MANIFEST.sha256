@@ -1,11 +1,12 @@
-5011e83adf10262c7682a69d1976fbb2478ebc3fba8504c447154b596af987e3  ./.github/workflows/build-apk.yml
+ddcf59a3b7ebcaacfe30118a67b33228251c1df826a6defbee7b0e68ba46372b  ./.github/workflows/build-apk.yml
 717076b18f3d3eb37d522d0af71e1b3e8c5a2bbc2594990aec23696ea12e9633  ./.gitignore
-795723832dbd9eb06807787e07cc136c6f17d271f0632a497dca1a565dc1623c  ./BUILD_STATUS.md
+959f2ee1104bd2af721f09021b066ab4e095097952bdfe22cdb07b087041b731  ./BUILD_STATUS.md
 4763d26382799117b57b67a0db1e18eeb325764ece9d5fbb19bc7701bffb4323  ./CHANGELOG_v0.6.0.md
+65546e4b41c7a53212c6d1f79ef31f17ecca23c0665fbfb169c97e924869f08c  ./CHANGELOG_v0.6.1.md
 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986  ./LICENSE
-4acbc78b67fa48c784bbca443026dfb7779137666c247b5ed480123b0e854fc8  ./README.md
+edb7d2a6149c3e67a3586e2c8c38c2c6b684db136b6928b7ee043a28c2d4832a  ./README.md
 92eb5c15c331a9610017270875c199a1c7b9cb4c5067447d3280ebff8ffb5d9e  ./THIRD_PARTY_NOTICES.md
-106643335a245c14b13bf2becc8e0424e7f11443259847a2be99975c359f24de  ./app/build.gradle
+4350b03a182a98681cd28dc135f780b2f45802cd5859ecb180c1273e7e43a13b  ./app/build.gradle
 97b19d52d12e0ccdc02e55aab0ee13edcb17d44780da2471549dd282bb3ff180  ./app/proguard-rules.pro
 6a061fd5f932e786ef79b53e4017e17097b41e1fa09aca839b566734c660a5f7  ./app/src/main/AndroidManifest.xml
 639aafab2368a9955074bc19f06010e7f7516cb92918d2d572e13d21ea10a12d  ./app/src/main/aidl/com/opendex/desktop/IWindowShellService.aidl
@@ -14,7 +15,7 @@ dc01bf9b5bcbae2d639ae0ad46f2ceaf883e762e8cc119b21986a9f4a4e7fb64  ./app/src/main
 85eb9e8083090298b003d0a8828882695abc03050952a8c498b02fd069ebb102  ./app/src/main/java/com/opendex/desktop/AppWindowView.java
 631e25f1633566ebbe9358bc45d958cfd2083bb1c782026d0f30941242d3152a  ./app/src/main/java/com/opendex/desktop/DesktopActivity.java
 f50eceef1d4b61c4efaf40dcd0bf05d1e826685634d4932d4bcfd8cf2f7a597c  ./app/src/main/java/com/opendex/desktop/ShizukuBridge.java
-8d25ea4c04f42335452016c0601b5ea1bb0c927b4c6462ffda035fbca4708c84  ./app/src/main/java/com/opendex/desktop/shell/WindowShellService.java
+eea6791bef726a14982cdfdac81ed9198602d2fb83054674700e14aa2e69c8be  ./app/src/main/java/com/opendex/desktop/shell/WindowShellService.java
 1dccaff0ec23c94c574291d059d679fdd0e049425141c530e4cdb4f0b60de0a0  ./app/src/main/res/drawable/host_icon.xml
 26fb3620e503a9700c23cf8fe3fd0b5eb9bb9e313e866fb3e2caaf9d087e084c  ./app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 26fb3620e503a9700c23cf8fe3fd0b5eb9bb9e313e866fb3e2caaf9d087e084c  ./app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
@@ -23,5 +24,5 @@ f50eceef1d4b61c4efaf40dcd0bf05d1e826685634d4932d4bcfd8cf2f7a597c  ./app/src/main
 3a243b092762965aee08b49b7af98c8575b759de457bcf772fb8d6b448edf20e  ./app/src/main/res/values/styles.xml
 b69cfbfc5e3f21faabace981d489fbe09130ced2d9073284a8ba242bf896a646  ./build.gradle
 c3154e3d5f1a042cf9c144e754b436fd100b11dfa2a71a9a4fc5772f8f5c5661  ./gradle.properties
-7c1474bafe2c2f3a6178fa05719587300ee3803641974ee0d0ac305fdcaeefe7  ./scripts/preflight.py
+0a7adaaacaadb32bd5c2fa21efc7c99bdf2d70cbee4cf33cc1244566176fa1d6  ./scripts/preflight.py
 5d6c8b534293aaed6f1b452b0a1eda18083ceae9426ffa4b8b0b29ac1791f05e  ./settings.gradle

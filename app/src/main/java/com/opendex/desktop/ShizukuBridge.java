@@ -164,7 +164,15 @@ public final class ShizukuBridge {
         IScrcpyShellService r = remote;
         if (r == null) throw new IllegalStateException("Shizuku shell belum siap");
         if (!ensureServerInstalledBlocking()) throw new IllegalStateException("scrcpy-server asset gagal dipasang");
-        return r.startScrcpyServer(scid, width, height, dpi, bitRate, maxFps);
+        String result = r.startScrcpyServer(scid, width, height, dpi, bitRate, maxFps);
+        // scrcpy with cleanup=true unlinks its server file shortly after startup. v0.7.2
+        // runs cleanup=false, but repair once anyway so upgrades from older builds are safe.
+        if (result != null && result.startsWith("ERROR|scrcpy-server missing")) {
+            serverInstalled = false;
+            if (!ensureServerInstalledBlocking()) throw new IllegalStateException("scrcpy-server repair gagal");
+            result = r.startScrcpyServer(scid, width, height, dpi, bitRate, maxFps);
+        }
+        return result;
     }
 
     public ParcelFileDescriptor connectScrcpyBlocking(int scid) throws Exception {

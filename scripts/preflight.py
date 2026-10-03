@@ -47,11 +47,24 @@ checks = {
     'new-display option': 'new_display=',
     'system decorations disabled': 'vd_system_decorations=false',
     'flex display enabled': 'flex_display=true',
+    'persistent server for multi-session': 'cleanup=false',
+    'force-stop start app': 'sendStartApp("+" + packageName)',
     'H264 decoder': 'MediaFormat.MIMETYPE_VIDEO_AVC',
 }
 for label, needle in checks.items():
     if needle not in alljava:
         errors.append(f'missing protocol guard: {label}')
+
+# v0.7.2 multi-session guards
+service=(ROOT/'app/src/main/java/com/opendex/desktop/shell/ScrcpyShellService.java').read_text(errors='ignore')
+session=(ROOT/'app/src/main/java/com/opendex/desktop/ScrcpySession.java').read_text(errors='ignore')
+if '"cleanup=true"' in service:
+    errors.append('scrcpy cleanup=true deletes/reclaims the shared server and breaks concurrent sessions')
+if '"cleanup=false"' not in service:
+    errors.append('scrcpy cleanup=false missing for concurrent sessions')
+if 'sendStartApp("+" + packageName)' not in session:
+    errors.append('START_APP must force-stop existing phone task before launching on virtual display')
+
 if errors:
     print('PREFLIGHT FAIL')
     for e in errors: print(' -',e)

@@ -137,7 +137,10 @@ public final class ScrcpySession {
                 // The virtual display now exists and the scrcpy controller is attached to it.
                 // Start the target app *inside* that display instead of using ActivityOptions on
                 // the phone's normal task display area.
-                if (!sendStartApp(packageName)) throw new IllegalStateException("START_APP gagal dikirim");
+                // Prefix '+' is the official scrcpy force-stop-before-start form. This prevents
+                // Android from reusing an existing task from the phone display and makes the target
+                // start fresh inside this session's new virtual display.
+                if (!sendStartApp("+" + packageName)) throw new IllegalStateException("START_APP gagal dikirim");
                 if (listener != null) listener.onReady(first.width, first.height);
                 state("Streaming · " + first.width + "×" + first.height + " · H.264");
                 videoLoop(input);

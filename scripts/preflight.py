@@ -95,14 +95,15 @@ if 'surfaceView.setOnKeyListener' not in desktop:
     fail('hardware keyboard forwarding must use the focused SurfaceView OnKeyListener')
 
 
-# v0.5.5 guards
-if "forcePackageTaskWindowingUndefined" not in aidl:
-    fail("missing task windowing-0 AIDL")
-if "setTaskWindowingMode" not in service:
-    fail("missing exact task windowing transaction")
-if "findTaskWindowingMode" not in service:
-    fail("missing task windowing verification")
-
+# v0.5.6 guards
+if 'startTaskFreeformWatcher' not in service:
+    fail('auto-freeform task watcher missing')
+if 'am task resizeable ' not in service or 'am task resize ' not in service:
+    fail('shell task resize fallback missing')
+if 'forceLauncherUndefinedWithRetry' in desktop:
+    fail('launcher must not be forced through hidden setTaskWindowingMode APIs')
+if 'forcePackageTaskWindowingUndefined(HOST_PACKAGE' in desktop:
+    fail('host task must not be forced through hidden task-windowing API')
 
 # Public Android SDK stubs do not expose hidden TaskInfo#getDisplayId().
 if 'task.getDisplayId()' in service:
@@ -119,11 +120,9 @@ if 'actions/upload-artifact@v7' not in workflow:
     fail('CI must use Node-24 upload-artifact action')
 
 if '--windowingMode 1' in bridge:
-    fail('v0.5.5 must not force launcher windowing mode 1')
+    fail('v0.5.6 must not force launcher windowing mode 1')
 if 'set-display-windowing-mode -d " + id + " 1' in service:
-    fail('v0.5.5 must not force display windowing mode 1')
-if 'setTaskWindowingMode' in service and '0 /* UNDEFINED */' not in service:
-    fail('task windowing transaction must request mode 0')
+    fail('v0.5.6 must not force display windowing mode 1')
 
 if errors:
     print('PREFLIGHT FAILED')
@@ -133,6 +132,6 @@ if errors:
 
 print('PREFLIGHT PASS')
 print('Original DroidUP launcher SHA-256:', expected)
-print('Architecture: trusted display + WINDOWING_MODE_UNDEFINED(0) + DroidUP launch bounds + native panel resolution')
+print('Architecture: trusted display + WINDOWING_MODE_UNDEFINED(0) launcher + shell task auto-freeform + native panel resolution')
 print('Input: SurfaceView key listener + AndroidX OnBackPressedDispatcher')
 print('CI: ubuntu-24.04 + Node-24 GitHub actions')

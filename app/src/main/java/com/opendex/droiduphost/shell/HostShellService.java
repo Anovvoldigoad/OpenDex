@@ -28,6 +28,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -63,6 +66,13 @@ public final class HostShellService extends IHostShellService.Stub {
     private InputManager inputManager;
     private Method injectInputEventMethod;
     private Method setDisplayIdMethod;
+
+    private volatile boolean taskWatcherRunning;
+    private Thread taskWatcherThread;
+    private int desktopDisplayId = -1;
+    private int desktopWidth;
+    private int desktopHeight;
+    private final Set<Integer> processedFreeformTasks = new HashSet<>();
 
     public HostShellService() {
         this.context = null;
@@ -178,9 +188,11 @@ public final class HostShellService extends IHostShellService.Stub {
                 }
                 int id = desktopDisplay.getDisplay().getDisplayId();
 
-                // Keep the display policy inherited/undefined (0). DroidUP remains the desktop background;
-                // child app tasks still use the original DroidUP launch bounds.
+                // Keep the display policy inherited/undefined (0). On the tested OEM this resolves
+                // to fullscreen for the launcher. A shell-side watcher below converts only child
+                // app tasks to bounded/resizable tasks, so the desktop itself never gets a caption.
                 String displayMode = configureDesktopWindowing(id);
+                startTaskFreeformWatcher(id, width, height);
 
                 return "OK|" + id + "|flags=0x" + Integer.toHexString(candidate)
                         + "|uid=" + Os.getuid() + "|" + displayMode.replace('\n', ' ');
@@ -223,6 +235,181 @@ public final class HostShellService extends IHostShellService.Stub {
         if (probe.length() > 160) probe = probe.substring(0, 160);
         return "displayMode=" + (setOk ? "UNDEFINED0" : "FAILED")
                 + (probe.isEmpty() ? "" : ":" + probe);
+    }
+
+    /**
+     * Keep the display itself in WINDOWING_MODE_UNDEFINED/fullscreen so DroidUP is a true
+     * desktop background. Some OEM builds ignore ActivityOptions.setLaunchBounds() while the
+     * display policy resolves to fullscreen. Instead of forcing the whole display to mode 5,
+     * watch for newly-created non-launcher tasks and resize only those tasks through the public
+     * `am task` shell surface. AOSP's `am task resize` forces the task resizable and places it
+     * in a bounded stack, which is exactly what we need here without touching DroidUP's UI.
+     */
+    private synchronized void startTaskFreeformWatcher(int displayId, int width, int height) {
+        stopTaskFreeformWatcher();
+        desktopDisplayId = displayId;
+        desktopWidth = width;
+        desktopHeight = height;
+        processedFreeformTasks.clear();
+        taskWatcherRunning = true;
+        taskWatcherThread = new Thread(() -> runTaskWatcher(displayId, width, height), "DroidUP-TaskWatcher");
+        taskWatcherThread.setDaemon(true);
+        taskWatcherThread.start();
+    }
+
+    private void runTaskWatcher(int displayId, int width, int height) {
+        // Let the launcher become stable before evaluating child tasks.
+        SystemClock.sleep(450);
+        while (taskWatcherRunning && desktopDisplayId == displayId) {
+            try {
+                ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+                if (am != null) {
+                    List<ActivityManager.RunningTaskInfo> tasks = am.getRunningTasks(200);
+                    for (ActivityManager.RunningTaskInfo task : tasks) {
+                        if (!taskWatcherRunning || desktopDisplayId != displayId) break;
+                        if (task == null || getTaskDisplayId(task) != displayId) continue;
+                        String pkg = taskPackage(task);
+                        if (pkg == null || pkg.isEmpty()) continue;
+                        if ("com.levelup.droiduplauncher".equals(pkg)
+                                || "com.opendex.droiduphost".equals(pkg)
+                                || "com.android.systemui".equals(pkg)
+                                || "com.android.shell".equals(pkg)) {
+                            continue;
+                        }
+                        int taskId = task.taskId;
+                        synchronized (processedFreeformTasks) {
+                            if (processedFreeformTasks.contains(taskId)) continue;
+                            processedFreeformTasks.add(taskId);
+                        }
+                        forceTaskBounded(task, width, height);
+                    }
+                }
+            } catch (Throwable ignored) {
+                // Keep the watcher alive; an individual OEM task object must not kill the session.
+            }
+            SystemClock.sleep(180);
+        }
+    }
+
+    private void forceTaskBounded(ActivityManager.RunningTaskInfo task, int width, int height) {
+        if (task == null) return;
+        int taskId = task.taskId;
+        Rect bounds = readTaskBounds(task);
+        if (!isUsefulWindowBounds(bounds, width, height)) {
+            bounds = defaultWindowBounds(taskId, width, height);
+        } else {
+            bounds = clampBounds(bounds, width, height);
+        }
+
+        String rect = bounds.left + "," + bounds.top + "," + bounds.right + "," + bounds.bottom;
+        // `am task resizeable 2` marks the task resizable; `am task resize` then applies
+        // bounded geometry. Use a short-lived shell only once per newly-seen task, not per frame.
+        runShellQuick("am task resizeable " + taskId + " 2; am task resize " + taskId + " " + rect);
+    }
+
+    private Rect defaultWindowBounds(int taskId, int width, int height) {
+        int w = Math.max(640, Math.round(width * 0.72f));
+        int h = Math.max(420, Math.round(height * 0.76f));
+        w = Math.min(w, Math.max(1, width - 80));
+        h = Math.min(h, Math.max(1, height - 100));
+        int slot = Math.abs(taskId) % 5;
+        int stepX = Math.max(18, width / 80);
+        int stepY = Math.max(18, height / 45);
+        int left = Math.max(20, (width - w) / 2 + (slot - 2) * stepX);
+        int top = Math.max(20, (height - h) / 2 + (slot - 2) * stepY);
+        if (left + w > width - 20) left = Math.max(20, width - w - 20);
+        if (top + h > height - 70) top = Math.max(20, height - h - 70);
+        return new Rect(left, top, left + w, top + h);
+    }
+
+    private static Rect clampBounds(Rect in, int width, int height) {
+        Rect out = new Rect(in);
+        int minW = Math.min(480, Math.max(240, width / 4));
+        int minH = Math.min(320, Math.max(180, height / 4));
+        if (out.width() < minW || out.height() < minH) return new Rect(in);
+        int dx = 0, dy = 0;
+        if (out.left < 0) dx = -out.left;
+        if (out.right + dx > width) dx += width - (out.right + dx);
+        if (out.top < 0) dy = -out.top;
+        if (out.bottom + dy > height - 40) dy += (height - 40) - (out.bottom + dy);
+        out.offset(dx, dy);
+        return out;
+    }
+
+    private static boolean isUsefulWindowBounds(Rect r, int width, int height) {
+        if (r == null || r.isEmpty()) return false;
+        if (r.width() < 240 || r.height() < 180) return false;
+        // Full-display bounds mean the OEM discarded DroidUP's requested launch bounds.
+        return r.width() < width * 0.94f || r.height() < height * 0.92f;
+    }
+
+    private static String taskPackage(ActivityManager.RunningTaskInfo task) {
+        if (task == null) return null;
+        ComponentName c = task.topActivity != null ? task.topActivity : task.baseActivity;
+        return c == null ? null : c.getPackageName();
+    }
+
+    private static Rect readTaskBounds(ActivityManager.RunningTaskInfo task) {
+        if (task == null) return null;
+        try {
+            Field configurationField = findField(task.getClass(), "configuration");
+            if (configurationField == null) return null;
+            configurationField.setAccessible(true);
+            Object configuration = configurationField.get(task);
+            if (configuration == null) return null;
+            Field wcField = findField(configuration.getClass(), "windowConfiguration");
+            if (wcField == null) return null;
+            wcField.setAccessible(true);
+            Object wc = wcField.get(configuration);
+            if (wc == null) return null;
+            Method getBounds = findMethod(wc.getClass(), "getBounds");
+            if (getBounds == null) return null;
+            getBounds.setAccessible(true);
+            Object value = getBounds.invoke(wc);
+            return value instanceof Rect ? new Rect((Rect) value) : null;
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        Class<?> c = type;
+        while (c != null) {
+            try { return c.getDeclaredField(name); }
+            catch (Throwable ignored) {}
+            try { return c.getField(name); }
+            catch (Throwable ignored) {}
+            c = c.getSuperclass();
+        }
+        return null;
+    }
+
+    private static String runShellQuick(String command) {
+        Process process = null;
+        try {
+            process = new ProcessBuilder("/system/bin/sh", "-c", command)
+                    .redirectErrorStream(true).start();
+            if (!process.waitFor(4, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return "timeout";
+            }
+            return readAll(process.getInputStream());
+        } catch (Throwable t) {
+            return t.getClass().getSimpleName() + ": " + t.getMessage();
+        } finally {
+            if (process != null) process.destroy();
+        }
+    }
+
+    private synchronized void stopTaskFreeformWatcher() {
+        taskWatcherRunning = false;
+        Thread t = taskWatcherThread;
+        taskWatcherThread = null;
+        if (t != null) t.interrupt();
+        desktopDisplayId = -1;
+        synchronized (processedFreeformTasks) {
+            processedFreeformTasks.clear();
+        }
     }
 
     /**
@@ -446,6 +633,7 @@ public final class HostShellService extends IHostShellService.Stub {
 
     @Override
     public synchronized void releaseDesktopDisplay() {
+        stopTaskFreeformWatcher();
         VirtualDisplay vd = desktopDisplay;
         desktopDisplay = null;
         if (vd != null) {

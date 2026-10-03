@@ -1,9 +1,10 @@
-# Build status — v0.5.5
+# Build status — v0.5.6
 
-Static patch/audit completed in the working environment.
+Static source audit prepared for GitHub Actions.
 
-Key invariant: launcher/display/task requests use WINDOWING_MODE_UNDEFINED (0), not 1 or 5.
-Full Android build remains verified by the included GitHub Actions workflow.
+Expected CI artifact: `DroidUP-AndroidHost-v0.5.6-windowing0-auto-freeform-debug`
 
-- Fixed CI javac failure: direct hidden `RunningTaskInfo.getDisplayId()` reference removed.
-- Task display ID is resolved reflectively at runtime; no public-SDK hidden API compile dependency.
+Runtime target:
+- DroidUP launcher: inherited/fullscreen background (display mode 0)
+- Child apps: detected after launch and converted to bounded/resizable tasks using `am task resize`
+- No hidden `setTaskWindowingMode` call is required for launcher startup

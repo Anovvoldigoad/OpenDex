@@ -1,24 +1,16 @@
-# OpenDex DroidUP Host v0.5.5 — WINDOWING 0 + COMPILE FIX
+# OpenDex DroidUP Host v0.5.6
 
-Eksperimen ini mengikuti permintaan untuk tidak memaksa launcher/display ke FULLSCREEN (1) atau FREEFORM (5).
+This build keeps the original DroidUP launcher UI untouched.
 
-## Windowing policy
+## What changed
+The previous build tried to force the launcher task itself to windowing mode 0 through a hidden ActivityTaskManager method. On some OEM ROMs that method is absent, producing `NoSuchMethodException:setTaskWindowingMode`, while mode 0 already resolves to fullscreen naturally.
 
-- Virtual display: `wm set-display-windowing-mode -d <id> 0`
-- DroidUP launcher start: `--windowingMode 0`
-- Host + launcher task: `setTaskWindowingMode(taskId, 0, true)`
-- Remembered task bounds dibersihkan.
-- Tidak ada fallback `moveToFullscreen`.
-- Child apps tetap memakai launch bounds dari APK DroidUP asli.
+v0.5.6 therefore leaves the launcher alone and watches only child application tasks. When a new app appears on the DroidUP display, the Shizuku shell service uses Android's `am task resizeable` and `am task resize` commands to convert that app into a bounded/resizable window.
 
-`0` adalah `WINDOWING_MODE_UNDEFINED`, jadi mode final dapat diwarisi dari parent / kebijakan ROM. Ini sengaja untuk menguji apakah decoration desktop hilang tanpa memaksa mode 1.
+## Expected behavior
+- Desktop/launcher fills the virtual display with no diagnostic banner.
+- Opening Chrome/YouTube/etc. should create a bounded window instead of replacing the desktop fullscreen.
+- Display resolution selection and native-panel auto detection from v0.5.x remain.
 
-## Resolution
-Native-panel auto detection dan preset/custom resolution dari v0.5.2/v0.5.3 tetap dipertahankan.
-
-## GitHub Actions artifact
-`DroidUP-AndroidHost-v0.5.5-windowing0-debug`
-
-
-## v0.5.5 compile fix
-GitHub Actions public SDK stubs do not expose hidden `TaskInfo.getDisplayId()`. Task display lookup now uses runtime reflection (`getDisplayId` then `displayId` field fallback) inside the Shizuku shell service. Windowing mode remains 0.
+## Build from a phone
+Push the repository to GitHub and run **Build DroidUP Android Host v0.5.6 Windowing 0 Auto Freeform** from Actions.

@@ -26,6 +26,15 @@ else:
     sha=hashlib.sha256(server.read_bytes()).hexdigest()
     exp='deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae'
     if sha != exp: errors.append(f'scrcpy server SHA mismatch: {sha}')
+
+# Package visibility must use <queries>, never QUERY_ALL_PACKAGES.
+manifest_text=(ROOT/'app/src/main/AndroidManifest.xml').read_text(errors='ignore')
+if 'android.permission.QUERY_ALL_PACKAGES' in manifest_text:
+    errors.append('QUERY_ALL_PACKAGES must not be requested; use launcher <queries> visibility')
+for needle in ['<queries>', 'android.intent.action.MAIN', 'android.intent.category.LAUNCHER']:
+    if needle not in manifest_text:
+        errors.append('package visibility manifest guard missing: '+needle)
+
 alljava='\n'.join(p.read_text(errors='ignore') for p in (ROOT/'app/src/main/java').rglob('*.java'))
 for bad in ['createVirtualDisplay(', 'set-display-windowing-mode -d " + displayId + " 5', 'am task resize ']:
     if bad in alljava: errors.append('old native-freeform path found: '+bad)

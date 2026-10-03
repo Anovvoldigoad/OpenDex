@@ -45,18 +45,20 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Android lint
-        run: gradle --no-daemon :app:lintDebug --stacktrace
-
+      # Upload a successful compile before lint so phone-only testers can still
+      # retrieve the APK if a future non-compile lint regression appears.
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-ScrcpyEngine-v0.7.0-debug.apk
-          sha256sum out/OpenDex-ScrcpyEngine-v0.7.0-debug.apk | tee out/SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-ScrcpyEngine-v0.7.1-debug.apk
+          sha256sum out/OpenDex-ScrcpyEngine-v0.7.1-debug.apk | tee out/SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: OpenDex-ScrcpyEngine-v0.7.0-debug
+          name: OpenDex-ScrcpyEngine-v0.7.1-debug
           path: out/*
           if-no-files-found: error
+
+      - name: Android lint
+        run: gradle --no-daemon :app:lintDebug --stacktrace

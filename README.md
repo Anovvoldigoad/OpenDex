@@ -1,4 +1,4 @@
-# OpenDex v0.7.0 — scrcpy rootless engine
+# OpenDex v0.7.1 — scrcpy rootless engine
 
 This branch is a clean rootless pivot. It does **not** use DroidUP, AOSP freeform windows, `am task resize`, or OpenDex-created `VirtualDisplay` surfaces.
 
@@ -31,7 +31,7 @@ v0.7 delegates creation/capture/control to the official scrcpy server instead of
 
 Upload this folder to GitHub. Open **Actions → Build OpenDex scrcpy engine → Run workflow**. The workflow downloads the official scrcpy-server v4.1, verifies its SHA-256, builds the APK, runs lint, and uploads:
 
-`OpenDex-ScrcpyEngine-v0.7.0-debug`
+`OpenDex-ScrcpyEngine-v0.7.1-debug`
 
 Install the APK inside that artifact ZIP.
 
@@ -49,3 +49,8 @@ If the window shows an error, screenshot the complete text. The error includes s
 ## Important technical note
 
 scrcpy's client/server protocol is internal and version-specific. This implementation is deliberately pinned to scrcpy-server **v4.1** and CI verifies the exact official server checksum.
+
+
+## v0.7.1 package visibility fix
+
+`QUERY_ALL_PACKAGES` has been removed. OpenDex now declares only a launcher-activity `<queries>` intent (`MAIN` + `LAUNCHER`), which matches `AppRepository.queryIntentActivities()` and avoids the Android lint `QueryAllPackagesPermission` error while preserving the app drawer.

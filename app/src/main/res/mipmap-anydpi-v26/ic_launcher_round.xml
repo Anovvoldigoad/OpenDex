@@ -1,4 +1,4 @@
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/black" />
+    <background android:drawable="@color/desktop_bg" />
     <foreground android:drawable="@drawable/host_icon" />
 </adaptive-icon>

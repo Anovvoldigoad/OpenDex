@@ -1,3 +1,3 @@
-# No release shrinking yet. Keep Shizuku user service and AIDL intact.
--keep class com.opendex.droiduphost.shell.** { *; }
--keep interface com.opendex.droiduphost.IHostShellService { *; }
+# Debug-first prototype. Keep Shizuku UserService and AIDL names stable.
+-keep class com.opendex.desktop.shell.WindowShellService { *; }
+-keep class com.opendex.desktop.IWindowShellService$Stub { *; }

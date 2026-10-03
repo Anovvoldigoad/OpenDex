@@ -1,4 +1,4 @@
 <resources>
-    <color name="black">#000000</color>
-    <color name="white">#FFFFFF</color>
+    <color name="desktop_bg">#101217</color>
+    <color name="window_bg">#151820</color>
 </resources>

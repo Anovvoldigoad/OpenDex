@@ -3,15 +3,15 @@ plugins {
 }
 
 android {
-    namespace 'com.opendex.droiduphost'
+    namespace 'com.opendex.desktop'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.opendex.droiduphost'
+        applicationId 'com.opendex.desktop'
         minSdk 26
         targetSdk 36
-        versionCode 56
-        versionName '0.5.6-droidup-windowing0-auto-freeform'
+        versionCode 60
+        versionName '0.6.0-mi-engine'
     }
 
     buildFeatures {
@@ -35,5 +35,4 @@ dependencies {
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
     implementation 'androidx.annotation:annotation:1.9.1'
-    implementation 'androidx.activity:activity:1.10.1'
 }

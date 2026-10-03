@@ -1,10 +1,24 @@
-# Build status — v0.5.6
+# Build status - v0.6.0
 
-Static source audit prepared for GitHub Actions.
+## Static checks completed in the generation environment
 
-Expected CI artifact: `DroidUP-AndroidHost-v0.5.6-windowing0-auto-freeform-debug`
+- Project structure present.
+- AndroidManifest XML parsed successfully.
+- Resource XML parsed successfully.
+- Java source syntax scan: no syntax-only error patterns found.
+- No oversized Java hex literals.
+- No DroidUP package/asset dependency.
+- No `wm set-display-windowing-mode` dependency.
+- No `am task resize` dependency.
+- Trusted virtual-display path present.
+- Per-window TextureView path present.
+- Direct display input-injection path present.
+- GitHub Actions workflow YAML parsed successfully.
+- Source preflight passes locally.
 
-Runtime target:
-- DroidUP launcher: inherited/fullscreen background (display mode 0)
-- Child apps: detected after launch and converted to bounded/resizable tasks using `am task resize`
-- No hidden `setTaskWindowingMode` call is required for launcher startup
+## Not yet claimed
+
+`assembleDebug` cannot be executed in the generation container because an Android SDK/Gradle
+Android build environment is not available there. The included GitHub Actions workflow is the first
+real Android compiler test. Do not interpret this file as an `assembleDebug PASS` claim until CI has
+run.

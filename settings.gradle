@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = 'OpenDexMiEngine'
+rootProject.name = 'OpenDexScrcpyEngine'
 include ':app'

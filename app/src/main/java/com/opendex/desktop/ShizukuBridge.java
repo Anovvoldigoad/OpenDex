@@ -8,10 +8,12 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.view.Surface;
+import android.os.ParcelFileDescriptor;
 
-import com.opendex.desktop.shell.WindowShellService;
+import com.opendex.desktop.shell.ScrcpyShellService;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,23 +23,34 @@ public final class ShizukuBridge {
     public interface StateListener { void onStateChanged(); }
     public interface ResultCallback { void onResult(String result); }
 
-    private static final int REQUEST_CODE = 6021;
+    public static final String SCRCPY_SHA256 = "deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae";
+    private static final int REQUEST_CODE = 7021;
+
+    private final Context app;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService worker = Executors.newCachedThreadPool();
     private final Shizuku.UserServiceArgs args;
-    private volatile IWindowShellService remote;
+    private volatile IScrcpyShellService remote;
     private volatile boolean binding;
+    private volatile boolean serverInstalled;
     private StateListener stateListener;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder service) {
             binding = false;
-            remote = IWindowShellService.Stub.asInterface(service);
+            remote = IScrcpyShellService.Stub.asInterface(service);
             notifyState();
+            worker.execute(() -> {
+                try {
+                    if (ensureServerInstalledBlocking()) remote.prepareEnvironment();
+                } catch (Throwable ignored) {}
+                notifyState();
+            });
         }
         @Override public void onServiceDisconnected(ComponentName name) {
             binding = false;
             remote = null;
+            serverInstalled = false;
             notifyState();
         }
     };
@@ -49,6 +62,7 @@ public final class ShizukuBridge {
     private final Shizuku.OnBinderDeadListener binderDead = () -> {
         binding = false;
         remote = null;
+        serverInstalled = false;
         notifyState();
     };
     private final Shizuku.OnRequestPermissionResultListener permissionResult = (requestCode, grantResult) -> {
@@ -57,10 +71,10 @@ public final class ShizukuBridge {
     };
 
     public ShizukuBridge(Context context) {
-        Context app = context.getApplicationContext();
-        args = new Shizuku.UserServiceArgs(new ComponentName(app, WindowShellService.class))
-                .processNameSuffix("desktop_shell")
-                .tag("opendex_mi_engine_v1")
+        app = context.getApplicationContext();
+        args = new Shizuku.UserServiceArgs(new ComponentName(app, ScrcpyShellService.class))
+                .processNameSuffix("scrcpy_shell")
+                .tag("opendex_scrcpy_engine_v1")
                 .version(1)
                 .daemon(false)
                 .debuggable(BuildConfig.DEBUG);
@@ -71,7 +85,7 @@ public final class ShizukuBridge {
         try { Shizuku.addBinderReceivedListenerSticky(binderReceived); } catch (Throwable ignored) {}
         try { Shizuku.addBinderDeadListener(binderDead); } catch (Throwable ignored) {}
         try { Shizuku.addRequestPermissionResultListener(permissionResult); } catch (Throwable ignored) {}
-        if (hasPermission()) main.postDelayed(this::bind, 150);
+        if (hasPermission()) main.postDelayed(this::bind, 120);
         notifyState();
     }
 
@@ -90,23 +104,23 @@ public final class ShizukuBridge {
 
     public boolean hasPermission() {
         if (!binderAlive()) return false;
-        try {
-            return !Shizuku.isPreV11() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
-        } catch (Throwable t) {
-            return false;
-        }
+        try { return !Shizuku.isPreV11() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED; }
+        catch (Throwable t) { return false; }
     }
 
-    public boolean isReady() { return remote != null; }
+    public boolean isReady() { return remote != null && serverInstalled; }
 
     public String status() {
         if (!binderAlive()) return "Shizuku belum aktif";
         try { if (Shizuku.isPreV11()) return "Shizuku terlalu lama (butuh v11+)"; }
         catch (Throwable t) { return "Shizuku error"; }
         if (!hasPermission()) return "Izin Shizuku belum diberikan";
-        if (remote == null) return binding ? "Menghubungkan shell…" : "Shell belum terhubung";
-        try { return "Ready · shell UID " + remote.remoteUid(); }
-        catch (Throwable t) { return "Ready"; }
+        IScrcpyShellService r = remote;
+        if (r == null) return binding ? "Menghubungkan shell…" : "Shell belum terhubung";
+        try {
+            String base = "shell UID " + r.remoteUid();
+            return serverInstalled ? "Ready · scrcpy 4.1 · " + base : "Menyiapkan scrcpy-server · " + base;
+        } catch (Throwable t) { return "Shell ready"; }
     }
 
     public void requestPermission() {
@@ -132,78 +146,70 @@ public final class ShizukuBridge {
         });
     }
 
-    public void createDisplay(Surface surface, int width, int height, int dpi, String name, ResultCallback callback) {
-        IWindowShellService service = remote;
-        if (service == null) { deliver(callback, "ERROR|Shizuku shell belum siap"); return; }
-        worker.execute(() -> {
-            String result;
-            try { result = service.createWindowDisplay(surface, width, height, dpi, name, Build.VERSION.SDK_INT); }
-            catch (Throwable t) { result = "ERROR|" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
-            deliver(callback, result);
-        });
+    public boolean ensureServerInstalledBlocking() {
+        if (serverInstalled) return true;
+        IScrcpyShellService r = remote;
+        if (r == null) return false;
+        try {
+            byte[] server = readAsset("scrcpy-server-v4.1");
+            serverInstalled = r.installScrcpyServer(server, SCRCPY_SHA256);
+            return serverInstalled;
+        } catch (Throwable t) {
+            serverInstalled = false;
+            return false;
+        }
     }
 
-    public void resizeDisplay(int displayId, int width, int height, int dpi, ResultCallback callback) {
-        IWindowShellService service = remote;
-        if (service == null) { deliver(callback, "ERROR|Shizuku shell belum siap"); return; }
-        worker.execute(() -> {
-            String result;
-            try { result = service.resizeWindowDisplay(displayId, width, height, dpi); }
-            catch (Throwable t) { result = "ERROR|" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
-            deliver(callback, result);
-        });
+    public String startScrcpyServerBlocking(int scid, int width, int height, int dpi, int bitRate, int maxFps) throws Exception {
+        IScrcpyShellService r = remote;
+        if (r == null) throw new IllegalStateException("Shizuku shell belum siap");
+        if (!ensureServerInstalledBlocking()) throw new IllegalStateException("scrcpy-server asset gagal dipasang");
+        return r.startScrcpyServer(scid, width, height, dpi, bitRate, maxFps);
     }
 
-    public void launchComponent(int displayId, String packageName, String componentName, ResultCallback callback) {
-        IWindowShellService service = remote;
-        if (service == null) { deliver(callback, "ERROR|Shizuku shell belum siap"); return; }
-        worker.execute(() -> {
-            String result;
-            try { result = service.launchComponent(displayId, packageName, componentName); }
-            catch (Throwable t) { result = "ERROR|" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
-            deliver(callback, result);
-        });
+    public ParcelFileDescriptor connectScrcpyBlocking(int scid) throws Exception {
+        IScrcpyShellService r = remote;
+        if (r == null) throw new IllegalStateException("Shizuku shell belum siap");
+        return r.connectScrcpy(scid);
     }
 
-    public void releaseDisplay(int displayId) {
-        IWindowShellService service = remote;
-        if (service == null || displayId < 0) return;
-        worker.execute(() -> { try { service.releaseWindowDisplay(displayId); } catch (Throwable ignored) {} });
+    public String sessionInfoBlocking(int scid) {
+        IScrcpyShellService r = remote;
+        if (r == null) return "shell unavailable";
+        try { return r.sessionInfo(scid); } catch (Throwable t) { return t.getClass().getSimpleName() + ": " + t.getMessage(); }
     }
 
-    public boolean injectPointer(int displayId, int action, float x, float y, long downTime, long eventTime) {
-        IWindowShellService service = remote;
-        if (service == null) return false;
-        try { return service.injectPointer(displayId, action, x, y, downTime, eventTime); }
-        catch (Throwable t) { return false; }
+    public String prepareSessionDisplayBlocking(int scid) {
+        IScrcpyShellService r = remote;
+        if (r == null) return "shell unavailable";
+        try { return r.prepareSessionDisplay(scid); }
+        catch (Throwable t) { return t.getClass().getSimpleName() + ": " + t.getMessage(); }
     }
 
-    public boolean injectKey(int displayId, int keyCode) {
-        IWindowShellService service = remote;
-        if (service == null) return false;
-        try { return service.injectKey(displayId, keyCode); }
-        catch (Throwable t) { return false; }
+    public void stopScrcpyServer(int scid) {
+        IScrcpyShellService r = remote;
+        if (r == null) return;
+        worker.execute(() -> { try { r.stopScrcpyServer(scid); } catch (Throwable ignored) {} });
     }
-
 
     public void exec(String command, ResultCallback callback) {
-        IWindowShellService service = remote;
-        if (service == null) { deliver(callback, "EXIT=126\nShizuku shell belum siap"); return; }
+        IScrcpyShellService r = remote;
+        if (r == null) { deliver(callback, "EXIT=126\nShizuku shell belum siap"); return; }
         worker.execute(() -> {
             String result;
-            try { result = service.exec(command); }
+            try { result = r.exec(command); }
             catch (Throwable t) { result = "EXIT=125\n" + t.getClass().getSimpleName() + ": " + t.getMessage(); }
             deliver(callback, result);
         });
     }
 
-    public void tapFallback(int displayId, int x, int y) {
-        exec("input touchscreen -d " + displayId + " tap " + x + " " + y, null);
-    }
-
-    public void swipeFallback(int displayId, int x1, int y1, int x2, int y2, int durationMs) {
-        int duration = Math.max(80, Math.min(durationMs, 2000));
-        exec("input touchscreen -d " + displayId + " swipe " + x1 + " " + y1 + " " + x2 + " " + y2 + " " + duration, null);
+    private byte[] readAsset(String name) throws Exception {
+        try (InputStream in = app.getAssets().open(name); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) >= 0) out.write(buf, 0, n);
+            return out.toByteArray();
+        }
     }
 
     private void deliver(ResultCallback callback, String result) {

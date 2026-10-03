@@ -10,8 +10,8 @@ android {
         applicationId 'com.opendex.desktop'
         minSdk 26
         targetSdk 36
-        versionCode 61
-        versionName '0.6.1-private-display'
+        versionCode 70
+        versionName '0.7.0-scrcpy-engine'
     }
 
     buildFeatures {
@@ -28,6 +28,12 @@ android {
         resources {
             excludes += ['/META-INF/{AL2.0,LGPL2.1}']
         }
+    }
+
+    lint {
+        abortOnError true
+        warningsAsErrors false
+        checkReleaseBuilds false
     }
 }
 

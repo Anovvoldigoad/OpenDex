@@ -1,107 +1,51 @@
-# OpenDex Mi Engine v0.6.1
+# OpenDex v0.7.0 — scrcpy rootless engine
 
-This version intentionally drops the DroidUP launcher and stops using Android/OEM native
-freeform windows as the desktop engine.
+This branch is a clean rootless pivot. It does **not** use DroidUP, AOSP freeform windows, `am task resize`, or OpenDex-created `VirtualDisplay` surfaces.
 
-## v0.6.1 nested-window fix
+## Architecture
 
-Each application now runs fullscreen inside a **private trusted virtual display**. The display is not PUBLIC/PRESENTATION and is explicitly kept in windowing mode 1. This prevents Android 16 desktop policy from adding a second AOSP freeform titlebar inside the OpenDex custom window. OpenDex itself supplies the desktop frame.
+For every OpenDex desktop window:
 
+1. OpenDex asks a Shizuku UserService (shell UID) to run the official scrcpy-server v4.1.
+2. scrcpy-server creates its own new virtual display with `vd_system_decorations=false` and `flex_display=true`.
+3. The UserService connects to scrcpy's abstract Unix socket as shell and passes duplicated socket file descriptors back to the normal OpenDex app over Binder.
+4. OpenDex decodes the H.264 video stream with Android `MediaCodec` directly into a `TextureView` inside the custom desktop frame.
+5. Touch, keyboard, app-start, and display-resize messages use scrcpy's matching v4.1 control protocol.
 
-## What changed
+There is no AOSP floating-window caption around the OpenDex frame because the host is just a normal fullscreen Activity rendering decoded video.
 
-The engine now follows the core idea used by Mi-Freeform 3:
+## Why this is different from v0.6
 
-1. OpenDex itself is one fullscreen desktop Activity.
-2. Every opened Android application gets its **own trusted virtual display**.
-3. The app runs fullscreen inside that private display.
-4. The virtual display renders into a `TextureView` inside an OpenDex-owned desktop window.
-5. OpenDex draws the title bar, move/resize/maximize/minimize/close controls itself.
-6. Touch is forwarded to the correct virtual display through a Shizuku UserService.
+v0.6 created normal Android virtual displays from the Shizuku service and then embedded their surfaces. Android 16/OEM desktop policy could still decorate tasks inside those displays, producing nested windows.
 
-This means there is no AOSP freeform caption bar and no dependency on
-`wm set-display-windowing-mode`, `am task resize`, or DroidUP.
-
-## Why this is a better base
-
-Native freeform behavior is heavily OEM-dependent. On the tested phone the previous engine could
-create trusted displays but child tasks still resolved to fullscreen or inherited unwanted AOSP
-window decorations. In this engine the Android application is intentionally fullscreen inside its
-own virtual display; only the OpenDex `TextureView` moves and resizes on the desktop.
-
-A desktop window therefore looks conceptually like:
-
-```
-+------------------------------------------------+
-| App icon   Chrome                       _  [] X |
-+------------------------------------------------+
-|                                                |
-|       trusted virtual display surface          |
-|       Chrome is fullscreen *inside here*       |
-|                                                |
-+---------------------------------------------///+
-```
-
-## Current prototype features
-
-- Fullscreen phone desktop, landscape.
-- Start menu listing launchable Android apps.
-- Multiple desktop windows.
-- Custom title bar; no native AOSP freeform title bar.
-- Drag windows.
-- Resize windows from the bottom-right handle.
-- Maximize / restore.
-- Minimize / restore from taskbar.
-- Close window.
-- Taskbar running-app buttons.
-- Direct touch injection to each app display, with shell-input fallback.
-- Trusted virtual displays created by Shizuku shell UID.
-- `TextureView` composition so overlapping windows follow normal Android view Z-order.
-- No hardcoded 16:9 desktop resolution: the desktop uses the phone's actual landscape viewport.
-  Each app display automatically matches that window's content size.
+v0.7 delegates creation/capture/control to the official scrcpy server instead of reimplementing that machinery.
 
 ## Requirements
 
-- Android 8.0+ for the APK build target; the trusted-display path is primarily intended for newer Android.
-- Shizuku v11+; current testing should use the current Shizuku release.
-- Shizuku must be running and OpenDex must be authorized.
+- Android 8.0+ (API 26); Android 16 is the main test target.
+- Shizuku running and permission granted.
+- No root/Magisk.
+- Hardware H.264 decoder.
 
-No root is required by this OpenDex implementation.
+## Phone-only build
 
-## Build from a phone with GitHub Actions
+Upload this folder to GitHub. Open **Actions → Build OpenDex scrcpy engine → Run workflow**. The workflow downloads the official scrcpy-server v4.1, verifies its SHA-256, builds the APK, runs lint, and uploads:
 
-1. Extract this ZIP.
-2. Upload/push the project contents to a GitHub repository.
-3. Open **Actions -> Build OpenDex Mi Engine v0.6.1 -> Run workflow**.
-4. Download artifact **OpenDex-MiEngine-v0.6.1-debug**.
-5. Extract the artifact ZIP and install `OpenDex-MiEngine-v0.6.1-debug.apk`.
+`OpenDex-ScrcpyEngine-v0.7.0-debug`
 
-The CI intentionally builds and uploads the APK before running advisory lint so a non-runtime lint
-finding cannot hide the installable artifact during early engine testing.
+Install the APK inside that artifact ZIP.
 
-## First test
+## First runtime test
 
 1. Start Shizuku.
-2. Open OpenDex Desktop.
-3. Grant Shizuku permission.
-4. Tap Start (`⊞`).
-5. Open Chrome.
-6. Chrome should render **inside an OpenDex-owned movable window**.
-7. Open a second app. It should get a second independent window.
-8. Move one window over the other and verify the front window renders correctly.
-9. Resize the window from its bottom-right grip.
+2. Open OpenDex and grant permission.
+3. Wait until the taskbar says `Ready · scrcpy 4.1 · shell UID 2000`.
+4. Open Chrome (or another lightweight app) from Apps.
+5. Expected: app content appears directly inside the OpenDex custom window.
+6. Drag the custom title bar, resize from the bottom-right handle, maximize/minimize, then test touch.
 
-If a window says `Display gagal`, screenshot the full text. If it says `Launch gagal`, screenshot the
-full launch result. Those two diagnostics distinguish display-policy failures from app-launch-policy
-failures.
+If the window shows an error, screenshot the complete text. The error includes scrcpy-server logs and its detected display ID.
 
-## Important architecture note
+## Important technical note
 
-The upstream Mi-Freeform 3 project injects a display adapter/service into Android `system_server`
-and ships system/Magisk-oriented components. This project does **not** install that module. The
-OpenDex implementation keeps the desktop/window UI in a normal APK and moves only display creation
-and input injection into a Shizuku UserService running with shell privileges.
-
-## License
-
-GPL-3.0. See `LICENSE` and `THIRD_PARTY_NOTICES.md`.
+scrcpy's client/server protocol is internal and version-specific. This implementation is deliberately pinned to scrcpy-server **v4.1** and CI verifies the exact official server checksum.

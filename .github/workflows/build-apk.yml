@@ -1,4 +1,4 @@
-name: Build OpenDex Mi Engine v0.6.1
+name: Build OpenDex scrcpy engine
 
 on:
   workflow_dispatch:
@@ -8,9 +8,7 @@ on:
 jobs:
   android:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: read
-
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -31,25 +29,34 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
+      - name: Download official scrcpy-server v4.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/assets
+          curl -fL --retry 4 --retry-delay 2 \
+            https://github.com/Genymobile/scrcpy/releases/download/v4.1/scrcpy-server-v4.1 \
+            -o app/src/main/assets/scrcpy-server-v4.1
+          echo "deacb991ed2509715160ffdc7907e47b4160eb30d1566217e9047fd5b8850cae  app/src/main/assets/scrcpy-server-v4.1" | sha256sum -c -
+
       - name: Source preflight
         run: python3 scripts/preflight.py
 
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug --stacktrace
 
+      - name: Android lint
+        run: gradle --no-daemon :app:lintDebug --stacktrace
+
       - name: Prepare artifact
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-MiEngine-v0.6.1-private-display-debug.apk
-          sha256sum out/OpenDex-MiEngine-v0.6.1-private-display-debug.apk | tee out/SHA256SUMS.txt
+          cp app/build/outputs/apk/debug/app-debug.apk out/OpenDex-ScrcpyEngine-v0.7.0-debug.apk
+          sha256sum out/OpenDex-ScrcpyEngine-v0.7.0-debug.apk | tee out/SHA256SUMS.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: OpenDex-MiEngine-v0.6.1-private-display-debug
+          name: OpenDex-ScrcpyEngine-v0.7.0-debug
           path: out/*
           if-no-files-found: error
-
-      - name: Lint report (advisory for first engine build)
-        continue-on-error: true
-        run: gradle --no-daemon :app:lintDebug --stacktrace

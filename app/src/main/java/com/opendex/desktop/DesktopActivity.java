@@ -73,9 +73,9 @@ public final class DesktopActivity extends Activity implements AppWindowView.Hos
         workspaceLp.bottomMargin = dp(58);
         root.addView(workspace, workspaceLp);
 
-        // Minimal desktop watermark/status. UI is intentionally secondary in v0.6.
+        // Minimal desktop watermark/status. UI is intentionally secondary in v0.7.
         TextView brand = new TextView(this);
-        brand.setText("OpenDex · Mi engine prototype");
+        brand.setText("OpenDex · scrcpy 4.1 rootless engine");
         brand.setTextColor(0x66FFFFFF);
         brand.setTextSize(12);
         FrameLayout.LayoutParams brandLp = new FrameLayout.LayoutParams(
@@ -264,22 +264,26 @@ public final class DesktopActivity extends Activity implements AppWindowView.Hos
             return;
         }
 
-        AppWindowView window = new AppWindowView(this, app, bridge, this, 240);
+        AppWindowView window = new AppWindowView(this, app, bridge, this);
         windows.add(window);
-        workspace.addView(window);
 
-        workspace.post(() -> {
-            int sw = Math.max(dp(800), workspace.getWidth());
-            int sh = Math.max(dp(480), workspace.getHeight());
-            int w = Math.min(Math.round(sw * 0.68f), sw - dp(80));
-            int h = Math.min(Math.round(sh * 0.74f), sh - dp(70));
-            int step = dp(26);
-            int x = Math.max(dp(16), (sw - w) / 2 + ((cascade % 5) - 2) * step);
-            int y = Math.max(dp(16), (sh - h) / 2 + ((cascade % 5) - 2) * step);
-            cascade++;
-            window.setInitialBounds(x, y, w, h);
-            focusWindow(window);
-        });
+        // Set the window bounds BEFORE attaching it.  TextureView may create its Surface as
+        // soon as it is attached; if we add it MATCH_PARENT first, scrcpy would briefly start
+        // a full-desktop-size encoder and only shrink later, which wastes resources and makes
+        // the first launch look laggy.
+        int sw = workspace.getWidth();
+        int sh = workspace.getHeight();
+        if (sw <= 0) sw = Math.max(dp(800), getResources().getDisplayMetrics().widthPixels);
+        if (sh <= 0) sh = Math.max(dp(480), getResources().getDisplayMetrics().heightPixels - dp(58));
+        int w = Math.min(Math.round(sw * 0.68f), Math.max(dp(520), sw - dp(80)));
+        int h = Math.min(Math.round(sh * 0.74f), Math.max(dp(360), sh - dp(70)));
+        int step = dp(26);
+        int x = Math.max(dp(16), (sw - w) / 2 + ((cascade % 5) - 2) * step);
+        int y = Math.max(dp(16), (sh - h) / 2 + ((cascade % 5) - 2) * step);
+        cascade++;
+        window.setInitialBounds(x, y, w, h);
+        workspace.addView(window);
+        workspace.post(() -> focusWindow(window));
 
         View task = makeTaskButton(window);
         taskButtons.put(window, task);

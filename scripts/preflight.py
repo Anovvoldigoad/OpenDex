@@ -55,6 +55,11 @@ for label, needle in checks.items():
     if needle not in alljava:
         errors.append(f'missing protocol guard: {label}')
 
+
+# Android's compile stubs do not expose java.lang.Process.pid(); keep child PID out of diagnostics.
+if '.pid()' in alljava:
+    errors.append('Process.pid() is unavailable in the Android SDK compile stubs; do not use it')
+
 # v0.7.2 multi-session guards
 service=(ROOT/'app/src/main/java/com/opendex/desktop/shell/ScrcpyShellService.java').read_text(errors='ignore')
 session=(ROOT/'app/src/main/java/com/opendex/desktop/ScrcpySession.java').read_text(errors='ignore')

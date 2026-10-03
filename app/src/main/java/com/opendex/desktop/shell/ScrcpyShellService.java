@@ -126,7 +126,7 @@ public final class ScrcpyShellService extends IScrcpyShellService.Stub {
             sessions.put(scid, session);
             startLogReader(session);
             return "OK|scid=" + hex + "|" + width + "x" + height + "@" + dpi
-                    + "|uid=" + Os.getuid() + "|pid=" + process.pid() + "|cleanup=false";
+                    + "|uid=" + Os.getuid() + "|cleanup=false";
         } catch (Throwable t) {
             return "ERROR|start failed|" + shortError(t);
         }

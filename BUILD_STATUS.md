@@ -1,17 +1,13 @@
-# Build status — v0.7.2
+# Build status — v0.7.3
 
-Static checks performed in the generation environment:
+Static checks completed in the generation environment:
 
-- Android XML parse: PASS
-- Java structural/source checks: PASS
-- GitHub workflow YAML parse: PASS
-- OpenDex preflight source guards: PASS once the CI-downloaded official scrcpy-server v4.1 asset is present
-- Root-flat archive layout: PASS
+- Process.pid() compile regression removed
+- preflight guard added
+- cleanup=false preserved
+- +package START_APP preserved
+- XML parse check: PASS
+- workflow YAML parse check: PASS
+- source ZIP layout: root-flat
 
-Runtime changes requiring phone validation:
-
-1. Open Chrome window.
-2. Open a second app while Chrome remains open.
-3. Confirm both sessions stream simultaneously.
-4. Confirm the second window no longer reports `scrcpy-server missing`.
-5. Confirm a target app is started fresh on its own virtual display rather than reusing an existing phone-display task.
+GitHub Actions remains the authoritative Android compile/lint test.

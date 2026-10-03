@@ -10,8 +10,8 @@ android {
         applicationId 'com.opendex.desktop'
         minSdk 26
         targetSdk 36
-        versionCode 72
-        versionName '0.7.2-scrcpy-engine'
+        versionCode 73
+        versionName '0.7.3-scrcpy-engine'
     }
 
     buildFeatures {

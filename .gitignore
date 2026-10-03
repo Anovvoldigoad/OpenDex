@@ -1,5 +1,6 @@
 .gradle/
-**/build/
+.idea/
 local.properties
-.DS_Store
-app/src/main/assets/scrcpy-server-v4.1
+**/build/
+out/
+*.iml

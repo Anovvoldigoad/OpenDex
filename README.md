@@ -1,60 +1,47 @@
-# OpenDex v0.7.3 — scrcpy rootless engine
-## v0.7.3 runtime fix
+# OpenDex I2405 WCT Probe v0.1
 
-The scrcpy server now runs with `cleanup=false` so concurrent windows do not delete the shared server binary. App launch uses scrcpy's `+package` force-stop form to prevent task reuse from the phone display.
+Target khusus:
 
+- vivo / iQOO
+- model + device: `I2405`
+- Android 16 / API 36
+- tested context: OriginOS 6 family / firmware `PD2453F_EX_A_16.1.20.5.W20.V000L1`
+- Shizuku, no root, no scrcpy
 
-This branch is a clean rootless pivot. It does **not** use DroidUP, AOSP freeform windows, `am task resize`, or OpenDex-created `VirtualDisplay` surfaces.
+## Kenapa build ini ada
 
-## Architecture
+Dextop 1.7.0 berhasil membuat display sekunder, mengirim input, dan meluncurkan app ke display itu pada I2405. Tetapi OriginOS mengubah request freeform menjadi fullscreen. `wm set-display-windowing-mode -d <id> 5` juga dibaca kembali sebagai fullscreen.
 
-For every OpenDex desktop window:
+Probe ini menguji jalur yang belum diuji: `WindowContainerTransaction` (WCT) langsung pada task yang berjalan di display Dextop.
 
-1. OpenDex asks a Shizuku UserService (shell UID) to run the official scrcpy-server v4.1.
-2. scrcpy-server creates its own new virtual display with `vd_system_decorations=false` and `flex_display=true`.
-3. The UserService connects to scrcpy's abstract Unix socket as shell and passes duplicated socket file descriptors back to the normal OpenDex app over Binder.
-4. OpenDex decodes the H.264 video stream with Android `MediaCodec` directly into a `TextureView` inside the custom desktop frame.
-5. Touch, keyboard, app-start, and display-resize messages use scrcpy's matching v4.1 control protocol.
+## Cara build
 
-There is no AOSP floating-window caption around the OpenDex frame because the host is just a normal fullscreen Activity rendering decoded video.
+Push source ini ke GitHub. Workflow **Build I2405 WCT Probe** otomatis menghasilkan artifact APK.
 
-## Why this is different from v0.6
+Tidak ada custom `gradle-wrapper.jar`; workflow menggunakan Gradle 9.5 lewat `gradle/actions/setup-gradle`.
 
-v0.6 created normal Android virtual displays from the Shizuku service and then embedded their surfaces. Android 16/OEM desktop policy could still decorate tasks inside those displays, producing nested windows.
+## Cara test
 
-v0.7 delegates creation/capture/control to the official scrcpy server instead of reimplementing that machinery.
+1. Pastikan Shizuku running.
+2. Install APK hasil GitHub Actions.
+3. Buka **OpenDex I2405 WCT Probe**.
+4. Tap **Grant Shizuku** dan approve.
+5. Tap **START PROBE + OPEN DEXTOP**.
+6. Di Dextop pakai `1920x1080 / 240 dpi`, Landscape, lalu Start.
+7. Buka Chrome, lalu YouTube.
+8. Tunggu sekitar 10 detik.
+9. Stop session Dextop dan kembali ke Probe.
+10. Tap **REFRESH RESULT**.
+11. Kirim file `/storage/emulated/0/Download/OpenDex_I2405_WCT_Probe.txt`.
 
-## Requirements
+## Verdict yang mungkin
 
-- Android 8.0+ (API 26); Android 16 is the main test target.
-- Shizuku running and permission granted.
-- No root/Magisk.
-- Hardware H.264 decoder.
+- `SUCCESS_NATIVE_FREEFORM`: WCT berhasil, ini jalur backend yang harus dimasukkan ke fork Dextop/OpenDex.
+- `ORIGINOS_COERCED_FULLSCREEN`: WCT diterima tetapi Vivo memaksa task kembali fullscreen.
+- `WCT_BLOCKED_BY_PERMISSION`: shell/Shizuku tidak diberi `MANAGE_ACTIVITY_TASKS` untuk operasi ini.
+- `NO_TARGET_TASKS_SEEN`: worker tidak melihat task app pada display Dextop.
+- `WCT_PROBE_EXCEPTION`: ada incompatibility API/reflection; log akan berisi penyebabnya.
 
-## Phone-only build
+## Catatan
 
-Upload this folder to GitHub. Open **Actions → Build OpenDex scrcpy engine → Run workflow**. The workflow downloads the official scrcpy-server v4.1, verifies its SHA-256, builds the APK, runs lint, and uploads:
-
-`OpenDex-ScrcpyEngine-v0.7.3-debug`
-
-Install the APK inside that artifact ZIP.
-
-## First runtime test
-
-1. Start Shizuku.
-2. Open OpenDex and grant permission.
-3. Wait until the taskbar says `Ready · scrcpy 4.1 · shell UID 2000`.
-4. Open Chrome (or another lightweight app) from Apps.
-5. Expected: app content appears directly inside the OpenDex custom window.
-6. Drag the custom title bar, resize from the bottom-right handle, maximize/minimize, then test touch.
-
-If the window shows an error, screenshot the complete text. The error includes scrcpy-server logs and its detected display ID.
-
-## Important technical note
-
-scrcpy's client/server protocol is internal and version-specific. This implementation is deliberately pinned to scrcpy-server **v4.1** and CI verifies the exact official server checksum.
-
-
-## v0.7.3 package visibility fix
-
-`QUERY_ALL_PACKAGES` has been removed. OpenDex now declares only a launcher-activity `<queries>` intent (`MAIN` + `LAUNCHER`), which matches `AppRepository.queryIntentActivities()` and avoids the Android lint `QueryAllPackagesPermission` error while preserving the app drawer.
+Build ini hanya probe. Ia tidak mengganti renderer Dextop, tidak membuat stream video, dan tidak memakai scrcpy. Kalau WCT lolos, tahap berikutnya adalah memasukkan backend yang sama ke rule sempit `I2405 + SDK36` pada fork Dextop sesuai prinsip device-specific upstream.

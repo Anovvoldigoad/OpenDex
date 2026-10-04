@@ -3,15 +3,20 @@ plugins {
 }
 
 android {
-    namespace 'com.opendex.i2405probe'
+    namespace 'com.opendex.desktop'
     compileSdk 36
 
     defaultConfig {
-        applicationId 'com.opendex.i2405probe'
+        applicationId 'com.opendex.desktop'
         minSdk 26
         targetSdk 36
-        versionCode 1
-        versionName '0.1-i2405-probe'
+        versionCode 75
+        versionName '0.7.5-i2405-wct'
+    }
+
+    buildFeatures {
+        buildConfig true
+        aidl true
     }
 
     compileOptions {
@@ -19,18 +24,22 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    buildTypes {
-        debug {
-            minifyEnabled false
+    packaging {
+        resources {
+            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
         }
-        release {
-            minifyEnabled false
-        }
+    }
+
+    lint {
+        abortOnError true
+        warningsAsErrors false
+        checkReleaseBuilds false
     }
 }
 
 dependencies {
     implementation 'dev.rikka.shizuku:api:13.1.5'
     implementation 'dev.rikka.shizuku:provider:13.1.5'
+    implementation 'androidx.annotation:annotation:1.9.1'
     implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
 }

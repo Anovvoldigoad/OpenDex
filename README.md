@@ -1,47 +1,55 @@
-# OpenDex I2405 WCT Probe v0.1
+# OpenDex v0.7.5 — I2405 WCT self-contained
 
-Target khusus:
+Single-app OpenDex test build for iQOO I2405 / Android 16.
 
-- vivo / iQOO
-- model + device: `I2405`
-- Android 16 / API 36
-- tested context: OriginOS 6 family / firmware `PD2453F_EX_A_16.1.20.5.W20.V000L1`
-- Shizuku, no root, no scrcpy
+This is a **full source tree**, not an overlay and not a second probe app. It is based on the working OpenDex ScrcpyEngine v0.7.4 source and integrates the WindowContainerTransaction experiment directly into the existing Shizuku UserService.
 
-## Kenapa build ini ada
+## Runtime flow
 
-Dextop 1.7.0 berhasil membuat display sekunder, mengirim input, dan meluncurkan app ke display itu pada I2405. Tetapi OriginOS mengubah request freeform menjadi fullscreen. `wm set-display-windowing-mode -d <id> 5` juga dibaca kembali sebagai fullscreen.
+```text
+OpenDex
+  -> existing Shizuku UserService (shell UID)
+  -> official scrcpy-server v4.1 creates the virtual display
+  -> OpenDex observes displayId
+  -> I2405Freeform tries default TaskDisplayArea WCT -> FREEFORM(5)
+  -> app launch uses --display <id> --windowingMode 5
+  -> task-level WCT fallback + bounds
+  -> normal OpenDex video/control pipeline continues
+```
 
-Probe ini menguji jalur yang belum diuji: `WindowContainerTransaction` (WCT) langsung pada task yang berjalan di display Dextop.
+No separate WCT Probe APK is installed.
 
-## Cara build
+## GitHub build
 
-Push source ini ke GitHub. Workflow **Build I2405 WCT Probe** otomatis menghasilkan artifact APK.
+The workflow is `.github/workflows/build-apk.yml`. It uses JDK 17, Android SDK 36 and Gradle 9.5. It downloads the official scrcpy-server v4.1 and checks SHA-256 before compiling.
 
-Tidak ada custom `gradle-wrapper.jar`; workflow menggunakan Gradle 9.5 lewat `gradle/actions/setup-gradle`.
+Artifact:
 
-## Cara test
+`OpenDex-v0.7.5-I2405-WCT-debug`
 
-1. Pastikan Shizuku running.
-2. Install APK hasil GitHub Actions.
-3. Buka **OpenDex I2405 WCT Probe**.
-4. Tap **Grant Shizuku** dan approve.
-5. Tap **START PROBE + OPEN DEXTOP**.
-6. Di Dextop pakai `1920x1080 / 240 dpi`, Landscape, lalu Start.
-7. Buka Chrome, lalu YouTube.
-8. Tunggu sekitar 10 detik.
-9. Stop session Dextop dan kembali ke Probe.
-10. Tap **REFRESH RESULT**.
-11. Kirim file `/storage/emulated/0/Download/OpenDex_I2405_WCT_Probe.txt`.
+APK inside artifact:
 
-## Verdict yang mungkin
+`OpenDex-v0.7.5-I2405-WCT-debug.apk`
 
-- `SUCCESS_NATIVE_FREEFORM`: WCT berhasil, ini jalur backend yang harus dimasukkan ke fork Dextop/OpenDex.
-- `ORIGINOS_COERCED_FULLSCREEN`: WCT diterima tetapi Vivo memaksa task kembali fullscreen.
-- `WCT_BLOCKED_BY_PERMISSION`: shell/Shizuku tidak diberi `MANAGE_ACTIVITY_TASKS` untuk operasi ini.
-- `NO_TARGET_TASKS_SEEN`: worker tidak melihat task app pada display Dextop.
-- `WCT_PROBE_EXCEPTION`: ada incompatibility API/reflection; log akan berisi penyebabnya.
+## Device test
 
-## Catatan
+1. Start Shizuku and grant OpenDex permission.
+2. Start OpenDex normally.
+3. Open one app from the OpenDex desktop.
+4. Check the session/error text if the window does not behave correctly.
 
-Build ini hanya probe. Ia tidak mengganti renderer Dextop, tidak membuat stream video, dan tidak memakai scrcpy. Kalau WCT lolos, tahap berikutnya adalah memasukkan backend yang sama ke rule sempit `I2405 + SDK36` pada fork Dextop sesuai prinsip device-specific upstream.
+Useful shell diagnostics:
+
+```sh
+logcat -c
+logcat | grep -E 'OpenDex|scrcpy|WindowOrganizer|DisplayArea'
+```
+
+The meaningful runtime markers returned by OpenDex are:
+
+- `wct=OK|TDA|...` — display-level WCT accepted.
+- `wct=WARN|TDA|...` — display-level route was rejected/unavailable; task fallback still runs.
+- `taskWct=OK|TASK|...|after=5` — the launched task verified as freeform.
+- `taskWct=OK|TASK|...|after=1` — WCT was submitted but OriginOS forced the task back to fullscreen.
+
+Other phone models keep the original v0.7.4 fullscreen-per-session behavior.

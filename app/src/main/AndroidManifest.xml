@@ -2,16 +2,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+    <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Package visibility: OpenDex only needs apps that expose launcher activities. -->
     <queries>
-        <package android:name="moe.n4tsu.dextop" />
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
     </queries>
 
     <application
         android:allowBackup="false"
-        android:label="@string/app_name"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:label="OpenDex Desktop"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/AppTheme"
+        android:hardwareAccelerated="true"
+        android:resizeableActivity="false">
 
         <provider
             android:name="rikka.shizuku.ShizukuProvider"
@@ -22,9 +30,10 @@
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".DesktopActivity"
             android:exported="true"
-            android:screenOrientation="portrait">
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|screenSize|smallestScreenSize|keyboard|keyboardHidden|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

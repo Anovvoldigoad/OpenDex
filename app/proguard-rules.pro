@@ -1,0 +1,1 @@
+-keep class com.opendex.desktop.shell.ScrcpyShellService { *; }
